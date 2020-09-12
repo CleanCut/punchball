@@ -1,7 +1,7 @@
 // use bevy::prelude::*;
 
 // struct Velocity(f32);
-// struct Position(f32);
+struct Position(f32);
 
 // // this system spawns entities with the Position and Velocity components
 // fn setup(mut commands: Commands) {
@@ -33,11 +33,13 @@ use std::collections::HashSet;
 fn main() {
     App::build()
         .add_default_plugins()
-        .add_plugin(GilrsPlugin::default())
+        .add_plugin(GilrsPlugin::default()) // under-the-hood gamepad stuff
+        .add_startup_system(setup.system())
         .add_startup_system(connection_system.system())
         .add_system(connection_system.system())
         .add_system(button_system.system())
         .add_system(axis_system.system())
+        //.add_system(player_control.system())
         .add_resource(Lobby::default())
         .run();
 }
@@ -48,20 +50,60 @@ struct Lobby {
     gamepad_event_reader: EventReader<GamepadEvent>,
 }
 
-fn connection_system(mut lobby: ResMut<Lobby>, gamepad_event: Res<Events<GamepadEvent>>) {
+const MAX_PLAYERS: usize = 4;
+
+struct Player {
+    id: usize,
+}
+
+fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    commands.spawn(Camera2dComponents::default());
+}
+
+fn connection_system(
+    mut commands: Commands,
+    mut lobby: ResMut<Lobby>,
+    gamepad_event: Res<Events<GamepadEvent>>,
+    asset_server: Res<AssetServer>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
     for event in lobby.gamepad_event_reader.iter(&gamepad_event) {
         match event.event_type {
             GamepadEventType::Connected => {
-                lobby.gamepad.insert(event.gamepad);
-                println!("Connected {:?}", event.gamepad);
+                if lobby.gamepad.len() < MAX_PLAYERS {
+                    lobby.gamepad.insert(event.gamepad);
+                    println!("Connected {:?}", event.gamepad);
+                    let texture_handle = asset_server.load("assets/circle.png").unwrap();
+                    commands.spawn(Camera2dComponents::default());
+                    commands.spawn(SpriteComponents {
+                        material: materials.add(texture_handle.into()),
+                        ..Default::default()
+                    });
+                    println!("done spawning!");
+                } else {
+                    println!(
+                        "Not allowing {:?} to connect to the game! Already at max players of {}",
+                        event.gamepad, MAX_PLAYERS
+                    );
+                }
             }
             GamepadEventType::Disconnected => {
                 lobby.gamepad.remove(&event.gamepad);
+                // TODO: Remove player entity
+                //commands.despawn(entity)
                 println!("Disconnected {:?}", event.gamepad);
             }
         }
     }
 }
+
+//fn player_control(player: &Player, position: &Position) {
+//    println!("Player is {}", player.id);
+//}
 
 fn button_system(manager: Res<Lobby>, inputs: Res<Input<GamepadButton>>) {
     let button_codes = [

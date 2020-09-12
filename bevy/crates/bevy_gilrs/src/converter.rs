@@ -23,10 +23,7 @@ pub fn convert_button(button: gilrs::Button) -> Option<ButtonCode> {
         gilrs::Button::Mode => Some(ButtonCode::Mode),
         gilrs::Button::LeftThumb => Some(ButtonCode::LeftThumb),
         gilrs::Button::RightThumb => Some(ButtonCode::RightThumb),
-        gilrs::Button::DPadUp => {
-            println!("dpad up");
-            Some(ButtonCode::DPadUp)
-        }
+        gilrs::Button::DPadUp => Some(ButtonCode::DPadUp),
         gilrs::Button::DPadDown => Some(ButtonCode::DPadDown),
         gilrs::Button::DPadLeft => Some(ButtonCode::DPadLeft),
         gilrs::Button::DPadRight => Some(ButtonCode::DPadRight),
