@@ -6,16 +6,16 @@ use std::collections::HashSet;
 fn main() {
     App::build()
         .add_event::<PlayerMoveEvent>()
+        .init_resource::<State>()
+        .add_resource(Lobby::default())
         .add_default_plugins()
         .add_plugin(GilrsPlugin::default()) // under-the-hood gamepad stuff
         .add_startup_system(setup.system())
+        .add_system(axis_system.system())
         .add_startup_system(connection_system.system())
         .add_system(connection_system.system())
         .add_system(button_system.system())
-        .add_system(axis_system.system())
         .add_system(event_consumer.system())
-        //.add_system(player_control.system())
-        .add_resource(Lobby::default())
         .run();
 }
 
@@ -31,11 +31,7 @@ struct Player {
     id: usize,
 }
 
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-) {
+fn setup(mut commands: Commands) {
     commands.spawn(Camera2dComponents::default());
 }
 
@@ -126,17 +122,17 @@ struct State {
 }
 
 fn event_consumer(
-    mut state: Local<State>,
+    mut state: ResMut<State>,
     player_move_events: Res<Events<PlayerMoveEvent>>,
-    mut sprite_components: Mut<SpriteComponents>,
+    // mut sprite_components: Mut<SpriteComponents>,
 ) {
-    println!("Process events");
     for event in state.reader.iter(&player_move_events) {
-        match event.axis {
-            AxisCode::LeftStickX => *sprite_components.translation.x_mut() += event.value,
-            AxisCode::LeftStickY => *sprite_components.translation.y_mut() += event.value,
-            _ => {}
-        }
+        println!("Process events");
+        // match event.axis {
+        //     AxisCode::LeftStickX => *sprite_components.translation.x_mut() += event.value,
+        //     AxisCode::LeftStickY => *sprite_components.translation.y_mut() += event.value,
+        //     _ => {}
+        // }
     }
 }
 
