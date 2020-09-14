@@ -1,14 +1,16 @@
 use bevy::gilrs::GilrsPlugin;
 use bevy::input::gamepad::{Gamepad, GamepadButton, GamepadEvent, GamepadEventType};
 use bevy::prelude::*;
+use bevy::render::pass::ClearColor;
 use std::collections::HashSet;
 
 fn main() {
     App::build()
+        .add_default_plugins()
         .add_event::<PlayerMoveEvent>()
         .init_resource::<State>()
         .add_resource(Lobby::default())
-        .add_default_plugins()
+        .add_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .add_plugin(GilrsPlugin::default()) // under-the-hood gamepad stuff
         .add_startup_system(setup.system())
         .add_system(axis_system.system())
@@ -50,11 +52,15 @@ fn connection_system(
                     println!("Connected {:?}", event.gamepad);
                     let texture_handle = asset_server.load("assets/circle.png").unwrap();
                     commands.spawn(Camera2dComponents::default());
-                    commands.spawn(SpriteComponents {
-                        material: materials.add(texture_handle.into()),
-                        translation: Translation::new(200.0, 200.0, 0.0),
-                        ..Default::default()
-                    });
+                    commands
+                        .spawn(SpriteComponents {
+                            material: materials.add(texture_handle.into()),
+                            translation: Translation::new(0.0, 0.0, 0.0),
+                            ..Default::default()
+                        })
+                        .with(Player {
+                            id: event.gamepad.id,
+                        });
                     println!("done spawning!");
                 } else {
                     println!(
@@ -124,15 +130,27 @@ struct State {
 fn event_consumer(
     mut state: ResMut<State>,
     player_move_events: Res<Events<PlayerMoveEvent>>,
-    // mut sprite_components: Mut<SpriteComponents>,
+    mut query: Query<(&Player, &mut Translation)>, // mut sprite_components: Mut<SpriteComponents>,
 ) {
     for event in state.reader.iter(&player_move_events) {
-        println!("Process events");
-        // match event.axis {
-        //     AxisCode::LeftStickX => *sprite_components.translation.x_mut() += event.value,
-        //     AxisCode::LeftStickY => *sprite_components.translation.y_mut() += event.value,
-        //     _ => {}
-        // }
+        for (player, mut translation) in &mut query.iter() {
+            if player.id == event.player_id {
+                println!("---> {:?} {}", event.axis, event.value);
+                match event.axis {
+                    AxisCode::LeftStickX => {
+                        let old_x = dbg!(translation.x());
+                        translation.set_x(old_x + event.value)
+                    }
+                    AxisCode::LeftStickY => {
+                        let old_y = translation.y();
+                        translation.set_y(old_y + event.value)
+                    }
+                    _ => {
+                        println!("argumundo");
+                    }
+                }
+            }
+        }
     }
 }
 
