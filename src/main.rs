@@ -135,19 +135,10 @@ fn event_consumer(
     for event in state.reader.iter(&player_move_events) {
         for (player, mut translation) in &mut query.iter() {
             if player.id == event.player_id {
-                println!("---> {:?} {}", event.axis, event.value);
                 match event.axis {
-                    AxisCode::LeftStickX => {
-                        let old_x = dbg!(translation.x());
-                        translation.set_x(old_x + event.value)
-                    }
-                    AxisCode::LeftStickY => {
-                        let old_y = translation.y();
-                        translation.set_y(old_y + event.value)
-                    }
-                    _ => {
-                        println!("argumundo");
-                    }
+                    AxisCode::LeftStickX => *translation.x_mut() += event.value * 3.0,
+                    AxisCode::LeftStickY => *translation.y_mut() += event.value * 3.0,
+                    _ => {}
                 }
             }
         }
@@ -172,10 +163,7 @@ fn axis_system(
     for gamepad in manager.gamepad.iter() {
         for axis_code in axis_codes.iter() {
             if let Some(value) = axes.get(&GamepadAxis::new(*gamepad, *axis_code)) {
-                if value.abs() > 0.01f32
-                    && (value - 1.0f32).abs() > 0.01f32
-                    && (value + 1.0f32).abs() > 0.01f32
-                {
+                if value.abs() > 0.01f32 {
                     // println!(
                     //     "Axis {:?} is {}",
                     //     GamepadAxis::new(*gamepad, *axis_code),
