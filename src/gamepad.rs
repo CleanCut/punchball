@@ -4,6 +4,19 @@ use bevy::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Default)]
+pub struct GamepadPlugin;
+impl Plugin for GamepadPlugin {
+    fn build(&self, app: &mut AppBuilder) {
+        app.add_resource(GamepadManager::default())
+            .add_resource(GamepadInputs::default())
+            .add_system(axis_system.system())
+            .add_startup_system(connection_system.system())
+            .add_system(connection_system.system())
+            .add_system(button_system.system());
+    }
+}
+
+#[derive(Default)]
 pub struct GamepadInputs {
     pub inputs: HashMap<usize, GamepadInput>,
 }
