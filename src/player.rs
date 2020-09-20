@@ -23,7 +23,7 @@ pub fn player_spawn(
         commands
             .spawn(SpriteComponents {
                 material: materials.add(texture_handle.into()),
-                translation: Translation::new(0.0, 0.0, 0.0),
+                transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
                 ..Default::default()
             })
             .with(Player {
@@ -34,11 +34,11 @@ pub fn player_spawn(
 
 pub fn player_controller(
     gamepad_inputs: Res<GamepadInputs>,
-    mut player_query: Query<(&Player, &mut Translation)>,
+    mut player_query: Query<(&Player, &mut Transform)>,
 ) {
-    for (player, mut translation) in &mut player_query.iter() {
+    for (player, mut transform) in &mut player_query.iter() {
         let input = gamepad_inputs.inputs.get(&player.id).unwrap();
-        *translation.x_mut() += input.left_stick.x() * 3.0;
-        *translation.y_mut() += input.left_stick.y() * 3.0;
+        *transform.translation_mut().x_mut() += input.left_stick.x() * 3.0;
+        *transform.translation_mut().y_mut() += input.left_stick.y() * 3.0;
     }
 }

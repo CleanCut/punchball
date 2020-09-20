@@ -1,4 +1,3 @@
-use bevy::gilrs::GilrsPlugin;
 use bevy::prelude::*;
 use bevy::render::pass::ClearColor;
 
@@ -18,7 +17,6 @@ fn main() {
         .init_resource::<EventListeners>()
         .add_event::<PlayerSpawnEvent>()
         // Gamepad stuff
-        .add_plugin(GilrsPlugin::default()) // enable gamepad support in bevy
         .add_resource(GamepadManager::default())
         .add_resource(GamepadInputs::default())
         .add_system(axis_system.system())

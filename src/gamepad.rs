@@ -25,20 +25,20 @@ pub fn connection_system(
     gamepad_event: Res<Events<GamepadEvent>>,
     mut player_spawn_channel: ResMut<Events<PlayerSpawnEvent>>,
 ) {
-    for event in gamepad_manager.gamepad_event_reader.iter(&gamepad_event) {
-        match event.event_type {
+    for GamepadEvent(gamepad, gamepad_event_type) in
+        gamepad_manager.gamepad_event_reader.iter(&gamepad_event)
+    {
+        match gamepad_event_type {
             GamepadEventType::Connected => {
-                gamepad_manager.gamepad.insert(event.gamepad);
-                println!("Connected {:?}", event.gamepad);
-                player_spawn_channel.send(PlayerSpawnEvent {
-                    id: event.gamepad.id,
-                });
+                gamepad_manager.gamepad.insert(*gamepad);
+                println!("Connected {:?}", gamepad);
+                player_spawn_channel.send(PlayerSpawnEvent { id: gamepad.0 });
             }
             GamepadEventType::Disconnected => {
-                gamepad_manager.gamepad.remove(&event.gamepad);
+                gamepad_manager.gamepad.remove(&gamepad);
                 // TODO: Remove player entity
                 //commands.despawn(entity)
-                println!("Disconnected {:?}", event.gamepad);
+                println!("Disconnected {:?}", gamepad);
             }
         }
     }
@@ -46,32 +46,32 @@ pub fn connection_system(
 
 pub fn button_system(manager: Res<GamepadManager>, inputs: Res<Input<GamepadButton>>) {
     let button_codes = [
-        ButtonCode::South,
-        ButtonCode::East,
-        ButtonCode::North,
-        ButtonCode::West,
-        ButtonCode::C,
-        ButtonCode::Z,
-        ButtonCode::LeftTrigger,
-        ButtonCode::LeftTrigger2,
-        ButtonCode::RightTrigger,
-        ButtonCode::RightTrigger2,
-        ButtonCode::Select,
-        ButtonCode::Start,
-        ButtonCode::Mode,
-        ButtonCode::LeftThumb,
-        ButtonCode::RightThumb,
-        ButtonCode::DPadUp,
-        ButtonCode::DPadDown,
-        ButtonCode::DPadLeft,
-        ButtonCode::DPadRight,
+        GamepadButtonType::South,
+        GamepadButtonType::East,
+        GamepadButtonType::North,
+        GamepadButtonType::West,
+        GamepadButtonType::C,
+        GamepadButtonType::Z,
+        GamepadButtonType::LeftTrigger,
+        GamepadButtonType::LeftTrigger2,
+        GamepadButtonType::RightTrigger,
+        GamepadButtonType::RightTrigger2,
+        GamepadButtonType::Select,
+        GamepadButtonType::Start,
+        GamepadButtonType::Mode,
+        GamepadButtonType::LeftThumb,
+        GamepadButtonType::RightThumb,
+        GamepadButtonType::DPadUp,
+        GamepadButtonType::DPadDown,
+        GamepadButtonType::DPadLeft,
+        GamepadButtonType::DPadRight,
     ];
     for gamepad in manager.gamepad.iter() {
         for button_code in button_codes.iter() {
-            if inputs.just_pressed(GamepadButton::new(*gamepad, *button_code)) {
-                println!("Pressed {:?}", GamepadButton::new(*gamepad, *button_code));
-            } else if inputs.just_released(GamepadButton::new(*gamepad, *button_code)) {
-                println!("Released {:?}", GamepadButton::new(*gamepad, *button_code));
+            if inputs.just_pressed(GamepadButton(*gamepad, *button_code)) {
+                println!("Pressed {:?}", GamepadButton(*gamepad, *button_code));
+            } else if inputs.just_released(GamepadButton(*gamepad, *button_code)) {
+                println!("Released {:?}", GamepadButton(*gamepad, *button_code));
             }
         }
     }
@@ -83,22 +83,22 @@ pub fn axis_system(
     mut gamepad_inputs: ResMut<GamepadInputs>,
 ) {
     let axis_codes = [
-        AxisCode::LeftStickX,
-        AxisCode::LeftStickY,
-        // AxisCode::LeftZ,
-        // AxisCode::RightStickX,
-        // AxisCode::RightStickY,
-        // AxisCode::RightZ,
-        // AxisCode::DPadX,
-        // AxisCode::DPadY,
+        GamepadAxisType::LeftStickX,
+        GamepadAxisType::LeftStickY,
+        // GamepadAxisType::LeftZ,
+        // GamepadAxisType::RightStickX,
+        // GamepadAxisType::RightStickY,
+        // GamepadAxisType::RightZ,
+        // GamepadAxisType::DPadX,
+        // GamepadAxisType::DPadY,
     ];
     for gamepad in gamepad_manager.gamepad.iter() {
         for axis_code in axis_codes.iter() {
-            if let Some(value) = axes.get(&GamepadAxis::new(*gamepad, *axis_code)) {
-                let gamepad_input = gamepad_inputs.inputs.entry(gamepad.id).or_default();
+            if let Some(value) = axes.get(&GamepadAxis(*gamepad, *axis_code)) {
+                let gamepad_input = gamepad_inputs.inputs.entry(gamepad.0).or_default();
                 match axis_code {
-                    AxisCode::LeftStickX => gamepad_input.left_stick.set_x(value),
-                    AxisCode::LeftStickY => gamepad_input.left_stick.set_y(value),
+                    GamepadAxisType::LeftStickX => gamepad_input.left_stick.set_x(value),
+                    GamepadAxisType::LeftStickY => gamepad_input.left_stick.set_y(value),
                     _ => {}
                 }
             }
