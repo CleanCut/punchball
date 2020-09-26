@@ -30,7 +30,7 @@ pub struct PlayerColors(Vec<Color>);
 impl Default for PlayerColors {
     fn default() -> Self {
         Self(vec![
-            Color::rgb(1.0, 0.1, 0.0),
+            Color::rgb(0.592, 0.337, 0.157),
             Color::rgb(0.0, 1.0, 0.0),
             Color::rgb(0.0, 0.0, 1.0),
             Color::rgb(1.0, 1.0, 0.0),
