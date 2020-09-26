@@ -4,8 +4,15 @@ use crate::{
 };
 use bevy::prelude::*;
 
+use bevy_rapier2d::{
+    na::Vector2,
+    rapier::{dynamics::RigidBodySet, geometry::ColliderBuilder},
+};
+use bevy_rapier2d::{physics::RigidBodyHandleComponent, rapier::dynamics::RigidBodyBuilder};
+
 //const MAX_PLAYERS: usize = 4;
-const MOVE_SPEED: f32 = 150.0;
+const MOVE_SPEED: f32 = 150000000.0;
+const COLLISION_RADIUS: f32 = 32.0; // Needs to match the size of the sprite
 
 #[derive(Default)]
 pub struct PlayerPlugin;
@@ -17,11 +24,13 @@ impl Plugin for PlayerPlugin {
     }
 }
 
+// fn player_setup()
+
 pub struct PlayerColors(Vec<Color>);
 impl Default for PlayerColors {
     fn default() -> Self {
         Self(vec![
-            Color::rgb(1.0, 0.0, 0.0),
+            Color::rgb(1.0, 0.1, 0.0),
             Color::rgb(0.0, 1.0, 0.0),
             Color::rgb(0.0, 0.0, 1.0),
             Color::rgb(1.0, 1.0, 0.0),
@@ -35,14 +44,31 @@ pub struct Player {
 pub fn player_controller(
     gamepad_inputs: Res<GamepadInputs>,
     time: Res<Time>,
-    mut player_query: Query<(&Player, &mut Transform)>,
+    mut rigid_body_set: ResMut<RigidBodySet>,
+    //mut player_query: Query<(&Player, &mut Transform)>,
+    mut physics_query: Query<(&Player, &RigidBodyHandleComponent)>,
 ) {
-    for (player, mut transform) in &mut player_query.iter() {
-        let input = gamepad_inputs.inputs.get(&player.id).unwrap();
-        *transform.translation_mut().x_mut() +=
-            input.left_stick.x() * time.delta_seconds * MOVE_SPEED;
-        *transform.translation_mut().y_mut() +=
-            input.left_stick.y() * time.delta_seconds * MOVE_SPEED;
+    // for (player, mut transform) in &mut player_query.iter() {
+    // let input = gamepad_inputs.inputs.get(&player.id).unwrap();
+    // *transform.translation_mut().x_mut() +=
+    // input.left_stick.x() * time.delta_seconds * MOVE_SPEED;
+    // *transform.translation_mut().y_mut() +=
+    // input.left_stick.y() * time.delta_seconds * MOVE_SPEED;
+    // }
+
+    for (player, rigid_body_handle) in &mut physics_query.iter() {
+        let rigid_body_opt = rigid_body_set.get_mut(rigid_body_handle.handle());
+        if let Some(mut rigid_body) = rigid_body_opt {
+            let input = gamepad_inputs.inputs.get(&player.id).unwrap();
+            rigid_body.apply_force(Vector2::new(
+                input.left_stick.x() * time.delta_seconds * MOVE_SPEED,
+                0.0,
+            ));
+            rigid_body.apply_force(Vector2::new(
+                0.0,
+                input.left_stick.y() * time.delta_seconds * MOVE_SPEED,
+            ));
+        }
     }
 }
 
@@ -64,11 +90,20 @@ pub fn player_spawn(
         commands
             .spawn(SpriteComponents {
                 material: materials.add(color_material),
-                transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
+                transform: Transform::from_translation(Vec3::new(
+                    player_spawn_event.id as f32,
+                    200.0 * player_spawn_event.id as f32,
+                    0.0,
+                )),
                 ..Default::default()
             })
             .with(Player {
                 id: player_spawn_event.id,
-            });
+            })
+            .with(RigidBodyBuilder::new_dynamic().translation(
+                player_spawn_event.id as f32 * 2.0,
+                200.0 * player_spawn_event.id as f32,
+            ))
+            .with(ColliderBuilder::ball(COLLISION_RADIUS));
     }
 }
