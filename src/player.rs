@@ -1,4 +1,5 @@
 use crate::{
+    color_from_f32,
     event::{EventListeners, PlayerSpawnEvent},
     gamepad::GamepadInputs,
 };
@@ -30,10 +31,10 @@ pub struct PlayerColors(Vec<Color>);
 impl Default for PlayerColors {
     fn default() -> Self {
         Self(vec![
-            Color::rgb(0.592, 0.337, 0.157),
-            Color::rgb(0.0, 1.0, 0.0),
-            Color::rgb(0.0, 0.0, 1.0),
-            Color::rgb(1.0, 1.0, 0.0),
+            color_from_f32(0.235, 0.349, 0.494), // blue
+            color_from_f32(0.976, 0.761, 0.416), // gold
+            color_from_f32(0.377, 0.565, 0.537), // green
+            color_from_f32(0.592, 0.337, 0.157), // brown
         ])
     }
 }

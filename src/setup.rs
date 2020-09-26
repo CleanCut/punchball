@@ -3,7 +3,6 @@ use bevy::prelude::*;
 pub struct SetupPlugin;
 impl Plugin for SetupPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        //app.add_resource(ClearColor(Color::rgb(0.592, 0.337, 0.157)))
         app.add_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
             .add_startup_system(setup.system());
     }
