@@ -92,8 +92,8 @@ pub fn player_spawn(
             .spawn(SpriteComponents {
                 material: materials.add(color_material),
                 transform: Transform::from_translation(Vec3::new(
-                    player_spawn_event.id as f32,
-                    200.0 * player_spawn_event.id as f32,
+                    -200.0 + 100.0 * player_spawn_event.id as f32,
+                    0.0,
                     0.0,
                 )),
                 ..Default::default()
@@ -101,10 +101,10 @@ pub fn player_spawn(
             .with(Player {
                 id: player_spawn_event.id,
             })
-            .with(RigidBodyBuilder::new_dynamic().translation(
-                player_spawn_event.id as f32 * 2.0,
-                200.0 * player_spawn_event.id as f32,
-            ))
+            .with(
+                RigidBodyBuilder::new_dynamic()
+                    .translation(-200.0 + 100.0 * player_spawn_event.id as f32, 0.0),
+            )
             .with(ColliderBuilder::ball(COLLISION_RADIUS));
     }
 }

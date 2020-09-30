@@ -5,7 +5,8 @@ use bevy_rapier2d::{
     physics::{Gravity, RapierPhysicsPlugin},
 };
 use punchball::{
-    event::EventPlugin, gamepad::GamepadPlugin, player::PlayerPlugin, setup::SetupPlugin,
+    arena::ArenaPlugin, event::EventPlugin, gamepad::GamepadPlugin, player::PlayerPlugin,
+    setup::SetupPlugin,
 };
 
 fn main() {
@@ -17,8 +18,12 @@ fn main() {
         .add_resource(Gravity(Vector2::new(0.0, 0.0)))
         // Punchball stuff
         .add_plugin(SetupPlugin::default())
+        .add_plugin(ArenaPlugin)
         .add_plugin(EventPlugin::default())
         .add_plugin(GamepadPlugin::default())
         .add_plugin(PlayerPlugin::default())
         .run();
 }
+
+trait Parent {}
+trait Child: Parent {}
