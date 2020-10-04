@@ -381,7 +381,7 @@ dependencies = [
 [[package]]
 name = "bevy_lyon"
 version = "0.1.0"
-source = "git+https://github.com/CleanCut/bevy_lyon?branch=bevy-0.2.1#cc462851bfe0331bd64664ce9e398c1507c01de1"
+source = "git+https://github.com/Jerald/bevy_lyon#3b42b7447b73b311afaa13a1ab59f8087e4ec124"
 dependencies = [
  "bevy",
  "lyon",
