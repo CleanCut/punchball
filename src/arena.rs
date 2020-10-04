@@ -1,10 +1,5 @@
-use std::collections::HashSet;
-
 use crate::{color_from_f32, physics::BodyHandleToEntity, player::Player};
-use bevy::{
-    ecs::bevy_utils::{HashMap, HashMapExt},
-    prelude::*,
-};
+use bevy::prelude::*;
 use bevy_lyon::{math, shapes, LyonMeshBuilder};
 use bevy_rapier2d::{
     physics::EventQueue,
@@ -17,11 +12,8 @@ const ARENA_RADIUS: f32 = 300.0;
 pub struct ArenaPlugin;
 impl Plugin for ArenaPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_resource(LeaveArenaDebouncer {
-            player_timers: HashMap::with_capacity(4),
-        })
-        .add_startup_system(spawn_arena_system.system())
-        .add_system(leave_arena_system.system());
+        app.add_startup_system(spawn_arena_system.system())
+            .add_system(leave_arena_system.system());
     }
 }
 
@@ -48,10 +40,6 @@ fn spawn_arena_system(
         .with(Arena)
         .with(RigidBodyBuilder::new_dynamic())
         .with(ColliderBuilder::ball(ARENA_RADIUS).sensor(true));
-}
-
-struct LeaveArenaDebouncer {
-    player_timers: HashMap<usize, Timer>,
 }
 
 fn leave_arena_system(
