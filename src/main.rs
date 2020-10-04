@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_rapier2d::render::RapierRenderPlugin;
+//use bevy_rapier2d::render::RapierRenderPlugin;
 use bevy_rapier2d::{
     na::Vector2,
     physics::{Gravity, RapierPhysicsPlugin},
@@ -14,7 +14,7 @@ fn main() {
         // Engine stuff
         .add_default_plugins()
         .add_plugin(RapierPhysicsPlugin)
-        .add_plugin(RapierRenderPlugin)
+        //        .add_plugin(RapierRenderPlugin) // Only shows something if nothing renderable is on the entity
         .add_resource(Gravity(Vector2::new(0.0, 0.0)))
         // Punchball stuff
         .add_plugin(PhysicsPlugin::default())
