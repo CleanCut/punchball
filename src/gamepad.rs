@@ -25,6 +25,7 @@ pub struct GamepadInputs {
 #[derive(Default)]
 pub struct GamepadInput {
     pub left_stick: Vec2,
+    pub right_stick: Vec2,
 }
 
 #[derive(Default)]
@@ -99,8 +100,8 @@ pub fn axis_system(
         GamepadAxisType::LeftStickX,
         GamepadAxisType::LeftStickY,
         // GamepadAxisType::LeftZ,
-        // GamepadAxisType::RightStickX,
-        // GamepadAxisType::RightStickY,
+        GamepadAxisType::RightStickX,
+        GamepadAxisType::RightStickY,
         // GamepadAxisType::RightZ,
         // GamepadAxisType::DPadX,
         // GamepadAxisType::DPadY,
@@ -112,6 +113,8 @@ pub fn axis_system(
                 match axis_code {
                     GamepadAxisType::LeftStickX => gamepad_input.left_stick.set_x(value),
                     GamepadAxisType::LeftStickY => gamepad_input.left_stick.set_y(value),
+                    GamepadAxisType::RightStickX => gamepad_input.right_stick.set_x(value),
+                    GamepadAxisType::RightStickY => gamepad_input.right_stick.set_y(value),
                     _ => {}
                 }
             }

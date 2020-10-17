@@ -5,7 +5,7 @@ use crate::{
 };
 use bevy::prelude::*;
 
-use bevy_lyon::{math, shapes, LyonMeshBuilder, LyonShapeBuilder};
+use bevy_lyon::{math, shapes, LyonMeshBuilder};
 use bevy_rapier2d::{
     na::Vector2,
     rapier::{dynamics::RigidBodySet, geometry::ColliderBuilder},
@@ -41,6 +41,7 @@ impl Default for PlayerColors {
 }
 pub struct Player {
     pub id: usize,
+    pub facing: Vec2,
 }
 
 pub fn player_controller(
@@ -48,20 +49,13 @@ pub fn player_controller(
     time: Res<Time>,
     mut rigid_body_set: ResMut<RigidBodySet>,
     //mut player_query: Query<(&Player, &mut Transform)>,
-    mut physics_query: Query<(&Player, &RigidBodyHandleComponent)>,
+    mut physics_query: Query<(&mut Player, &RigidBodyHandleComponent, &mut Transform)>,
 ) {
-    // for (player, mut transform) in &mut player_query.iter() {
-    // let input = gamepad_inputs.inputs.get(&player.id).unwrap();
-    // *transform.translation_mut().x_mut() +=
-    // input.left_stick.x() * time.delta_seconds * MOVE_SPEED;
-    // *transform.translation_mut().y_mut() +=
-    // input.left_stick.y() * time.delta_seconds * MOVE_SPEED;
-    // }
-
-    for (player, rigid_body_handle) in &mut physics_query.iter() {
+    for (mut player, rigid_body_handle, mut transform) in &mut physics_query.iter() {
         let rigid_body_opt = rigid_body_set.get_mut(rigid_body_handle.handle());
         if let Some(mut rigid_body) = rigid_body_opt {
             let input = gamepad_inputs.inputs.get(&player.id).unwrap();
+            // Move with left stick
             rigid_body.apply_force(Vector2::new(
                 input.left_stick.x() * time.delta_seconds * MOVE_SPEED,
                 0.0,
@@ -70,8 +64,22 @@ pub fn player_controller(
                 0.0,
                 input.left_stick.y() * time.delta_seconds * MOVE_SPEED,
             ));
+            // Set direction of player with right stick
+            let facing_vec = Vec2::new(input.right_stick.x(), input.right_stick.y());
+            if facing_vec.length() > 0.1 {
+                player.facing = facing_vec;
+            }
+            let quat = Quat::from_axis_angle(
+                Vec3::new(0.0, 0.0, 1.0),
+                angle_facing(&Vec2::new(0.0, 0.0), &player.facing),
+            );
+            transform.set_rotation(quat);
         }
     }
+}
+
+fn angle_facing(v1: &Vec2, v2: &Vec2) -> f32 {
+    (v2.y() - v1.y()).atan2(v2.x() - v1.x())
 }
 
 pub fn player_spawn(
@@ -95,7 +103,7 @@ pub fn player_spawn(
                 .with(shapes::StrokePolyline {
                     points: vec![
                         math::point(0.0, 0.0),
-                        math::point(0.0, COLLISION_RADIUS * 2.5),
+                        math::point(COLLISION_RADIUS * 2.5, 0.0),
                     ],
                     is_closed: false,
                     options: &lyon::tessellation::StrokeOptions::default().with_line_width(3.0),
@@ -112,6 +120,7 @@ pub fn player_spawn(
             })
             .with(Player {
                 id: player_spawn_event.id,
+                facing: Vec2::unit_x(),
             })
             .with(RigidBodyBuilder::new_dynamic().translation(location_x, 0.0))
             .with(ColliderBuilder::ball(COLLISION_RADIUS));
