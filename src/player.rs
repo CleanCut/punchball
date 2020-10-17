@@ -5,6 +5,7 @@ use crate::{
 };
 use bevy::prelude::*;
 
+use bevy_lyon::{math, shapes, LyonMeshBuilder};
 use bevy_rapier2d::{
     na::Vector2,
     rapier::{dynamics::RigidBodySet, geometry::ColliderBuilder},
@@ -80,19 +81,22 @@ pub fn player_spawn(
     player_spawn_events: Res<Events<PlayerSpawnEvent>>,
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
 ) {
     for player_spawn_event in listeners.player_spawn_reader.iter(&player_spawn_events) {
         println!("Player {} spawns", player_spawn_event.id);
-        let texture_handle = asset_server.load("assets/circle.png").unwrap();
-        let color_material = ColorMaterial {
-            color: colors.0[player_spawn_event.id],
-            texture: texture_handle.into(),
-        };
         let location_x = -200.0 + 100.0 * player_spawn_event.id as f32;
+        let fill_circle = meshes.add(LyonMeshBuilder::with_only(shapes::FillCircle {
+            center: math::point(0.0, 0.0),
+            radius: COLLISION_RADIUS,
+            ..Default::default()
+        }));
         commands
             .spawn(SpriteComponents {
-                material: materials.add(color_material),
-                transform: Transform::from_translation(Vec3::new(location_x, 0.0, 0.0)),
+                mesh: fill_circle,
+                material: materials.add(colors.0[player_spawn_event.id].into()),
+                sprite: Sprite::new(Vec2::new(1.0, 1.0)),
+                transform: Transform::from_translation(Vec3::new(0.0, 0.0, -0.1)),
                 ..Default::default()
             })
             .with(Player {
