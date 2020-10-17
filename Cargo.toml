@@ -1,7 +1,10 @@
 [package]
 name = "punchball"
 version = "0.1.0"
-authors = ["Nathan Stocks <cleancut@github.com>", "Zac Stocks <thatsmr.socks@gmail.com"]
+authors = [
+    "Nathan Stocks <cleancut@github.com>",
+    "Zac Stocks <thatsmr.socks@gmail.com",
+]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -9,6 +12,7 @@ edition = "2018"
 [dependencies]
 bevy = "0.2.1"
 bevy_lyon = { git = "https://github.com/Jerald/bevy_lyon" }
+lyon = "0.16.2"
 bevy_rapier2d = "0.2.0"
 
 # Compile all the *dependencies* in optimized release mode even if `--release` is not passed in

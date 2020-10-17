@@ -5,7 +5,7 @@ use crate::{
 };
 use bevy::prelude::*;
 
-use bevy_lyon::{math, shapes, LyonMeshBuilder};
+use bevy_lyon::{math, shapes, LyonMeshBuilder, LyonShapeBuilder};
 use bevy_rapier2d::{
     na::Vector2,
     rapier::{dynamics::RigidBodySet, geometry::ColliderBuilder},
@@ -79,21 +79,32 @@ pub fn player_spawn(
     mut listeners: ResMut<EventListeners>,
     colors: Res<PlayerColors>,
     player_spawn_events: Res<Events<PlayerSpawnEvent>>,
-    asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     for player_spawn_event in listeners.player_spawn_reader.iter(&player_spawn_events) {
         println!("Player {} spawns", player_spawn_event.id);
         let location_x = -200.0 + 100.0 * player_spawn_event.id as f32;
-        let fill_circle = meshes.add(LyonMeshBuilder::with_only(shapes::FillCircle {
-            center: math::point(0.0, 0.0),
-            radius: COLLISION_RADIUS,
-            ..Default::default()
-        }));
+        let player_shape = meshes.add(
+            LyonMeshBuilder::new()
+                .with(shapes::FillCircle {
+                    center: math::point(0.0, 0.0),
+                    radius: COLLISION_RADIUS,
+                    ..Default::default()
+                })
+                .with(shapes::StrokePolyline {
+                    points: vec![
+                        math::point(0.0, 0.0),
+                        math::point(0.0, COLLISION_RADIUS * 2.5),
+                    ],
+                    is_closed: false,
+                    options: &lyon::tessellation::StrokeOptions::default().with_line_width(3.0),
+                })
+                .build(),
+        );
         commands
             .spawn(SpriteComponents {
-                mesh: fill_circle,
+                mesh: player_shape,
                 material: materials.add(colors.0[player_spawn_event.id].into()),
                 sprite: Sprite::new(Vec2::new(1.0, 1.0)),
                 transform: Transform::from_translation(Vec3::new(0.0, 0.0, -0.1)),
