@@ -2,7 +2,7 @@ use bevy::prelude::*;
 //use bevy_rapier2d::render::RapierRenderPlugin;
 use bevy_rapier2d::{
     na::Vector2,
-    physics::{Gravity, RapierPhysicsPlugin},
+    physics::{RapierConfiguration, RapierPhysicsPlugin},
 };
 use punchball::{
     arena::ArenaPlugin, event::EventPlugin, gamepad::GamepadPlugin, physics::PhysicsPlugin,
@@ -12,10 +12,13 @@ use punchball::{
 fn main() {
     App::build()
         // Engine stuff
-        .add_default_plugins()
+        .add_plugins(DefaultPlugins)
         .add_plugin(RapierPhysicsPlugin)
         //        .add_plugin(RapierRenderPlugin) // Only shows something if nothing renderable is on the entity
-        .add_resource(Gravity(Vector2::new(0.0, 0.0)))
+        .add_resource(RapierConfiguration {
+            gravity: Vector2::zeros(),
+            ..Default::default()
+        })
         // Punchball stuff
         .add_plugin(PhysicsPlugin::default())
         .add_plugin(SetupPlugin::default())

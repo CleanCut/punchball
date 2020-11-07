@@ -52,16 +52,20 @@ fn leave_arena_system(
         if proximity_event.new_status == Proximity::Disjoint {
             let e1 = *(bh_to_e.0.get(&proximity_event.collider1).unwrap());
             let e2 = *(bh_to_e.0.get(&proximity_event.collider2).unwrap());
-            if players.get::<Player>(e1).is_ok() && arena.get::<Arena>(e2).is_ok() {
+            if players.get_component::<Player>(e1).is_ok()
+                && arena.get_component::<Arena>(e2).is_ok()
+            {
                 println!(
                     "Player {} left the arena",
-                    players.get::<Player>(e1).unwrap().id
+                    players.get_component::<Player>(e1).unwrap().id
                 );
             }
-            if players.get::<Player>(e2).is_ok() && arena.get::<Arena>(e1).is_ok() {
+            if players.get_component::<Player>(e2).is_ok()
+                && arena.get_component::<Arena>(e1).is_ok()
+            {
                 println!(
                     "Player {} left the arena",
-                    players.get::<Player>(e2).unwrap().id
+                    players.get_component::<Player>(e2).unwrap().id
                 );
             }
         }

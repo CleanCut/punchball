@@ -54,6 +54,8 @@ pub fn connection_system(
                 //commands.despawn(entity)
                 println!("Disconnected {:?}", gamepad);
             }
+            GamepadEventType::ButtonChanged(_, _) => {}
+            GamepadEventType::AxisChanged(_, _) => {}
         }
     }
 }
@@ -108,7 +110,7 @@ pub fn axis_system(
     ];
     for gamepad in gamepad_manager.gamepad.iter() {
         for axis_code in axis_codes.iter() {
-            if let Some(value) = axes.get(&GamepadAxis(*gamepad, *axis_code)) {
+            if let Some(value) = axes.get(GamepadAxis(*gamepad, *axis_code)) {
                 let gamepad_input = gamepad_inputs.inputs.entry(gamepad.0).or_default();
                 match axis_code {
                     GamepadAxisType::LeftStickX => gamepad_input.left_stick.set_x(value),

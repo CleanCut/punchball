@@ -51,7 +51,7 @@ pub fn player_controller(
     //mut player_query: Query<(&Player, &mut Transform)>,
     mut physics_query: Query<(&mut Player, &RigidBodyHandleComponent, &mut Transform)>,
 ) {
-    for (mut player, rigid_body_handle, mut transform) in &mut physics_query.iter() {
+    for (mut player, rigid_body_handle, mut transform) in physics_query.iter_mut() {
         let rigid_body_opt = rigid_body_set.get_mut(rigid_body_handle.handle());
         if let Some(mut rigid_body) = rigid_body_opt {
             let input = gamepad_inputs.inputs.get(&player.id).unwrap();
@@ -73,7 +73,7 @@ pub fn player_controller(
                 Vec3::new(0.0, 0.0, 1.0),
                 angle_facing(&Vec2::new(0.0, 0.0), &player.facing),
             );
-            transform.set_rotation(quat);
+            transform.rotation = quat;
         }
     }
 }
