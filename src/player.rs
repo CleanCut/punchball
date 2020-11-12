@@ -3,7 +3,10 @@ use crate::{
     event::{EventListeners, PlayerSpawnEvent},
     gamepad::GamepadInputs,
 };
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    utils::{AHashExt, HashMap},
+};
 
 //const MAX_PLAYERS: usize = 4;
 const STARTING_LOCATIONS: [[f32; 3]; 4] = [
@@ -121,7 +124,7 @@ fn angle_facing(v1: &Vec2, v2: &Vec2) -> f32 {
     (v2.y() - v1.y()).atan2(v2.x() - v1.x())
 }
 
-const DEAD_ZONE_THRESHOLD: f32 = 0.1;
+const DEAD_ZONE_THRESHOLD: f32 = 0.2;
 const DRAG: f32 = 0.8;
 const MOVE_SPEED: f32 = 25.0;
 const MAX_VELOCITY: f32 = 4.0;
@@ -132,6 +135,24 @@ pub fn player_physics(
     gamepad_inputs: Res<GamepadInputs>,
     mut player_query: Query<(&mut Player, &mut Transform), Without<Dead>>,
 ) {
+    // Iterate through each player and collect positions so we can do collision detection
+    let mut player_positions: HashMap<usize, Vec3> = HashMap::new();
+    for (player, transform) in player_query.iter_mut() {
+        player_positions.insert(player.id, transform.translation);
+    }
+    // For each player, store positions of other players that we are colliding with (because we could hit more than one at once)
+    let mut player_collisions: HashMap<usize, Vec<Vec3>> = HashMap::new();
+    for (p, pos) in player_positions.iter() {
+        for (p2, pos2) in player_positions.iter() {
+            // Don't collide with one's self
+            if p == p2 {
+                continue;
+            }
+            if (*pos - *pos2).length() < COLLISION_RADIUS * 2.0 {
+                player_collisions.entry(*p).or_default().push(*pos2);
+            }
+        }
+    }
     // Iterate through each player and apply physics
     for (mut player, mut transform) in player_query.iter_mut() {
         // Apply fixed drag so players slow to a stop
@@ -147,6 +168,18 @@ pub fn player_physics(
         }
         if player.vel.length() > MAX_VELOCITY {
             player.vel = player.vel.normalize() * MAX_VELOCITY;
+        }
+
+        // Process this player's collisions
+        if let Some(collisions) = player_collisions.get(&player.id) {
+            for pos2 in collisions {
+                // See https://math.stackexchange.com/questions/13261/how-to-get-a-reflection-vector
+                let normal_vector = (transform.translation - *pos2).normalize();
+                let n = Vec2::new(normal_vector[0], normal_vector[1]);
+                let d = player.vel; // already a Vec2
+                let r = d - 2.0 * (d.dot(n)) * n;
+                player.vel = r;
+            }
         }
 
         // Apply velocity to position
