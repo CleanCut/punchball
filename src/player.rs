@@ -1,26 +1,29 @@
 use crate::{
+    arena::{Arena, ARENA_RADIUS},
     event::{EventListeners, PlayerSpawnEvent},
     gamepad::GamepadInputs,
 };
 use bevy::prelude::*;
 
 //const MAX_PLAYERS: usize = 4;
-const MOVE_SPEED: f32 = 25.0;
-const MAX_VELOCITY: f32 = 4.0;
-const COLLISION_RADIUS: f32 = 32.0; // Needs to match the size of the sprite
+const STARTING_LOCATIONS: [[f32; 3]; 4] = [
+    [-100.0, 100.0, 0.0],
+    [100.0, 100.0, 0.0],
+    [100.0, -100.0, 0.0],
+    [-100.0, -100.0, 0.0],
+];
 
 #[derive(Default)]
 pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_resource(PlayerColors::default())
-            .add_system(player_spawn.system())
-            .add_system(player_physics.system())
-            .add_system(player_controller.system());
+            .add_system(dead_players_system.system())
+            .add_system(leave_arena_system.system())
+            .add_system(player_join_system.system())
+            .add_system(player_physics.system());
     }
 }
-
-// fn player_setup()
 
 pub struct PlayerColors(Vec<Color>);
 impl Default for PlayerColors {
@@ -37,17 +40,105 @@ pub struct Player {
     pub id: usize,
     pub facing: Vec2,
     pub vel: Vec2,
+    pub respawn_timer: Timer,
 }
 
-pub fn player_controller(
-    gamepad_inputs: Res<GamepadInputs>,
-    time: Res<Time>,
-    mut player_query: Query<(&mut Player, &mut Transform)>,
+impl Player {
+    pub fn new(id: usize) -> Self {
+        Self {
+            id,
+            facing: Vec2::unit_x(),
+            vel: Vec2::zero(),
+            respawn_timer: Timer::from_seconds(2.0, false),
+        }
+    }
+}
+/// Marks that a player is dead
+pub struct Dead {}
+
+/// Detect a player leaving the arena, and add a Dead component to him.
+fn leave_arena_system(
+    commands: &mut Commands,
+    mut player_transforms: Query<(Entity, &Children, &Transform, &Player), Without<Dead>>,
+    arena_transforms: Query<&Transform, With<Arena>>,
+    mut draw_query: Query<&mut Draw>,
 ) {
+    for arena_transform in arena_transforms.iter() {
+        for (entity, children, player_transform, player) in player_transforms.iter_mut() {
+            if (player_transform.translation - arena_transform.translation).length() > ARENA_RADIUS
+            {
+                println!("Player {} dies", player.id);
+                commands.insert_one(entity, Dead {});
+                if let Ok(mut draw) = draw_query.get_mut(entity) {
+                    draw.is_visible = false;
+                }
+                // And any components of the player, like the glove
+                for child in children.iter() {
+                    if let Ok(mut draw) = draw_query.get_mut(*child) {
+                        draw.is_visible = false;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Handle players that are dead, eventually respawning them again
+pub fn dead_players_system(
+    commands: &mut Commands,
+    time: Res<Time>,
+    mut players: Query<(Entity, &Children, &mut Player, &mut Transform), With<Dead>>,
+    mut draw_query: Query<&mut Draw>,
+) {
+    for (entity, children, mut player, mut transform) in players.iter_mut() {
+        // Decrement the timer for how long the player has left to be dead
+        player.respawn_timer.tick(time.delta_seconds);
+        // Is the player done being dead?
+        if player.respawn_timer.finished {
+            // Restart the timer for next time
+            player.respawn_timer.reset();
+            // Reset velocity
+            player.vel = Vec2::zero();
+            // Spawn at the starting location
+            transform.translation = STARTING_LOCATIONS[player.id].into();
+            // Remove the "Dead" component
+            commands.remove_one::<Dead>(entity);
+            // Make the player visible again
+            if let Ok(mut draw) = draw_query.get_mut(entity) {
+                draw.is_visible = true;
+            }
+            // And any components of the player, like the glove
+            for child in children.iter() {
+                if let Ok(mut draw) = draw_query.get_mut(*child) {
+                    draw.is_visible = true;
+                }
+            }
+        }
+    }
+}
+
+fn angle_facing(v1: &Vec2, v2: &Vec2) -> f32 {
+    (v2.y() - v1.y()).atan2(v2.x() - v1.x())
+}
+
+const DEAD_ZONE_THRESHOLD: f32 = 0.1;
+const DRAG: f32 = 0.8;
+const MOVE_SPEED: f32 = 25.0;
+const MAX_VELOCITY: f32 = 4.0;
+const COLLISION_RADIUS: f32 = 32.0; // Needs to match the size of the sprite
+
+pub fn player_physics(
+    time: Res<Time>,
+    gamepad_inputs: Res<GamepadInputs>,
+    mut player_query: Query<(&mut Player, &mut Transform), Without<Dead>>,
+) {
+    // Iterate through each player and apply physics
     for (mut player, mut transform) in player_query.iter_mut() {
+        // Apply fixed drag so players slow to a stop
+        player.vel *= 1.0 - time.delta_seconds * DRAG;
+
+        // Adjust velocity based on gamepad input
         let input = gamepad_inputs.inputs.get(&player.id).unwrap();
-        // Move with left stick
-        const DEAD_ZONE_THRESHOLD: f32 = 0.1;
         let left_x = input.left_stick.x();
         let left_y = input.left_stick.y();
         if Vec2::new(left_x, left_y).length() > DEAD_ZONE_THRESHOLD {
@@ -57,6 +148,11 @@ pub fn player_controller(
         if player.vel.length() > MAX_VELOCITY {
             player.vel = player.vel.normalize() * MAX_VELOCITY;
         }
+
+        // Apply velocity to position
+        *transform.translation.x_mut() += player.vel.x() * time.delta_seconds * MOVE_SPEED;
+        *transform.translation.y_mut() += player.vel.y() * time.delta_seconds * MOVE_SPEED;
+
         // Set direction of player with right stick
         let facing_vec = Vec2::new(input.right_stick.x(), input.right_stick.y());
         if facing_vec.length() > 0.1 {
@@ -68,20 +164,10 @@ pub fn player_controller(
         );
         transform.rotation = quat;
     }
-
-    fn angle_facing(v1: &Vec2, v2: &Vec2) -> f32 {
-        (v2.y() - v1.y()).atan2(v2.x() - v1.x())
-    }
 }
 
-pub fn player_physics(time: Res<Time>, mut player_query: Query<(&Player, &mut Transform)>) {
-    for (player, mut transform) in player_query.iter_mut() {
-        *transform.translation.x_mut() += player.vel.x() * time.delta_seconds * MOVE_SPEED;
-        *transform.translation.y_mut() += player.vel.y() * time.delta_seconds * MOVE_SPEED;
-    }
-}
-
-pub fn player_spawn(
+/// Handle players joining the game
+pub fn player_join_system(
     commands: &mut Commands,
     mut listeners: ResMut<EventListeners>,
     colors: Res<PlayerColors>,
@@ -91,38 +177,27 @@ pub fn player_spawn(
 ) {
     for player_spawn_event in listeners.player_spawn_reader.iter(&player_spawn_events) {
         println!("Player {} spawns", player_spawn_event.id);
+        let glove = asset_server.load("glove.png");
         let circle_texture = asset_server.load("circle.png");
         let circle_material = ColorMaterial {
             color: colors.0[player_spawn_event.id],
             texture: circle_texture.into(),
         };
         let circle_handle = materials.add(circle_material);
-        let starting_locations = vec![
-            Vec3::new(-100.0, 100.0, 0.0),
-            Vec3::new(100.0, 100.0, 0.0),
-            Vec3::new(100.0, -100.0, 0.0),
-            Vec3::new(-100.0, -100.0, 0.0),
-        ];
         commands
             .spawn(SpriteComponents {
                 material: circle_handle.clone(),
-                transform: Transform::from_translation(starting_locations[player_spawn_event.id]),
+                transform: Transform::from_translation(
+                    STARTING_LOCATIONS[player_spawn_event.id].into(),
+                ),
                 ..Default::default()
             })
-            .with(Player {
-                id: player_spawn_event.id,
-                facing: Vec2::unit_x(),
-                vel: Vec2::zero(),
-            })
+            .with(Player::new(player_spawn_event.id))
             .with_children(|parent| {
                 // Punching Glove
                 parent.spawn(SpriteComponents {
-                    material: circle_handle,
-                    transform: Transform {
-                        translation: Vec3::new(40.0, 0.0, 0.1),
-                        scale: Vec3::splat(0.3),
-                        ..Default::default()
-                    },
+                    material: materials.add(glove.into()),
+                    transform: Transform::from_translation(Vec3::new(40.0, 0.0, 0.1)),
                     ..Default::default()
                 });
             });
