@@ -5,8 +5,9 @@ use crate::{
 };
 use bevy::{
     prelude::*,
-    utils::{AHashExt, HashMap},
+    utils::{AHashExt, HashMap, HashSet},
 };
+use std::hash::Hash;
 
 //const MAX_PLAYERS: usize = 4;
 const STARTING_LOCATIONS: [[f32; 3]; 4] = [
@@ -15,6 +16,8 @@ const STARTING_LOCATIONS: [[f32; 3]; 4] = [
     [100.0, -100.0, 0.0],
     [-100.0, -100.0, 0.0],
 ];
+
+type PlayerID = usize;
 
 #[derive(Default)]
 pub struct PlayerPlugin;
@@ -40,14 +43,14 @@ impl Default for PlayerColors {
     }
 }
 pub struct Player {
-    pub id: usize,
+    pub id: PlayerID,
     pub facing: Vec2,
     pub vel: Vec2,
     pub respawn_timer: Timer,
 }
 
 impl Player {
-    pub fn new(id: usize) -> Self {
+    pub fn new(id: PlayerID) -> Self {
         Self {
             id,
             facing: Vec2::unit_x(),
@@ -130,26 +133,93 @@ const MOVE_SPEED: f32 = 25.0;
 const MAX_VELOCITY: f32 = 4.0;
 const COLLISION_RADIUS: f32 = 32.0; // Needs to match the size of the sprite
 
+#[derive(Copy, Clone, Default)]
+struct Collision {
+    player_id1: PlayerID,
+    player_id2: PlayerID,
+    pos1: Vec2,
+    pos2: Vec2,
+    vel1: Vec2,
+    vel2: Vec2,
+}
+
+impl Collision {
+    /// Ask the collision if you're involved, if you are, what's your new velocity?
+    fn new_velocity(&self, player_id: PlayerID) -> Option<Vec2> {
+        // From the bottom of https://en.wikipedia.org/wiki/Elastic_collision assuming equal masses
+        if player_id == self.player_id1 {
+            Some(
+                self.vel1
+                    - ((self.vel1 - self.vel2).dot(self.pos1 - self.pos2)
+                        / (self.pos1 - self.pos2).length_squared())
+                        * (self.pos1 - self.pos2),
+            )
+        } else if player_id == self.player_id2 {
+            Some(
+                self.vel2
+                    - ((self.vel2 - self.vel1).dot(self.pos2 - self.pos1)
+                        / (self.pos2 - self.pos1).length_squared())
+                        * (self.pos2 - self.pos1),
+            )
+        } else {
+            None
+        }
+    }
+}
+
+/// Make it so that a collision involving two players is equal to any other collision involving the two players
+impl PartialEq for Collision {
+    fn eq(&self, other: &Self) -> bool {
+        ((self.player_id1 == other.player_id1) && (self.player_id2 == other.player_id2))
+            || ((self.player_id1 == other.player_id2) && (self.player_id2 == other.player_id1))
+    }
+}
+
+impl Eq for Collision {
+    fn assert_receiver_is_total_eq(&self) {}
+}
+
+/// Make it so that a collision involving two players hashes the same as any other collision with the same two players
+impl Hash for Collision {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let mut player_ids = vec![self.player_id1, self.player_id2];
+        player_ids.sort();
+        for player_id in player_ids {
+            self.player_id1.hash(state);
+        }
+    }
+}
+
 pub fn player_physics(
     time: Res<Time>,
     gamepad_inputs: Res<GamepadInputs>,
     mut player_query: Query<(&mut Player, &mut Transform), Without<Dead>>,
 ) {
     // Iterate through each player and collect positions so we can do collision detection
-    let mut player_positions: HashMap<usize, Vec3> = HashMap::new();
+    let mut player_positions: HashMap<PlayerID, Vec2> = HashMap::new();
+    let mut player_velocities: HashMap<PlayerID, Vec2> = HashMap::new();
     for (player, transform) in player_query.iter_mut() {
-        player_positions.insert(player.id, transform.translation);
+        player_positions.insert(player.id, transform.translation.into());
+        player_velocities.insert(player.id, player.vel);
     }
     // For each player, store positions of other players that we are colliding with (because we could hit more than one at once)
-    let mut player_collisions: HashMap<usize, Vec<Vec3>> = HashMap::new();
-    for (p, pos) in player_positions.iter() {
-        for (p2, pos2) in player_positions.iter() {
+    let mut player_collisions: HashSet<Collision> = HashSet::new();
+    for (&player_id1, &pos1) in player_positions.iter() {
+        for (&player_id2, &pos2) in player_positions.iter() {
             // Don't collide with one's self
-            if p == p2 {
+            if player_id1 == player_id2 {
                 continue;
             }
-            if (*pos - *pos2).length() < COLLISION_RADIUS * 2.0 {
-                player_collisions.entry(*p).or_default().push(*pos2);
+            if (pos1 - pos2).length() < COLLISION_RADIUS * 2.0 {
+                let collision = Collision {
+                    player_id1,
+                    player_id2,
+                    pos1,
+                    pos2,
+                    vel1: player_velocities[&player_id1],
+                    vel2: player_velocities[&player_id2],
+                };
+                player_collisions.insert(collision);
             }
         }
     }
@@ -170,15 +240,10 @@ pub fn player_physics(
             player.vel = player.vel.normalize() * MAX_VELOCITY;
         }
 
-        // Process this player's collisions
-        if let Some(collisions) = player_collisions.get(&player.id) {
-            for pos2 in collisions {
-                // See https://math.stackexchange.com/questions/13261/how-to-get-a-reflection-vector
-                let normal_vector = (transform.translation - *pos2).normalize();
-                let n = Vec2::new(normal_vector[0], normal_vector[1]);
-                let d = player.vel; // already a Vec2
-                let r = d - 2.0 * (d.dot(n)) * n;
-                player.vel = r;
+        // Process this player's collisions, adjusting velocities accordingly
+        for collision in player_collisions.iter() {
+            if let Some(new_velocity) = collision.new_velocity(player.id) {
+                player.vel = new_velocity;
             }
         }
 
