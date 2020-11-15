@@ -78,7 +78,7 @@ fn leave_arena_system(
                 if let Ok(mut draw) = draw_query.get_mut(entity) {
                     draw.is_visible = false;
                 }
-                // And any components of the player, like the glove
+                // And any children of the player, like the boxing glove
                 for child in children.iter() {
                     if let Ok(mut draw) = draw_query.get_mut(*child) {
                         draw.is_visible = false;
