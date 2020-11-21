@@ -26,6 +26,7 @@ pub struct GamepadInputs {
 pub struct GamepadInput {
     pub left_stick: Vec2,
     pub right_stick: Vec2,
+    pub right_trigger2: bool,
 }
 
 #[derive(Default)]
@@ -60,7 +61,11 @@ pub fn connection_system(
     }
 }
 
-pub fn button_system(manager: Res<GamepadManager>, inputs: Res<Input<GamepadButton>>) {
+pub fn button_system(
+    manager: Res<GamepadManager>,
+    inputs: Res<Input<GamepadButton>>,
+    mut gamepad_inputs: ResMut<GamepadInputs>,
+) {
     let button_codes = [
         GamepadButtonType::South,
         GamepadButtonType::East,
@@ -85,10 +90,17 @@ pub fn button_system(manager: Res<GamepadManager>, inputs: Res<Input<GamepadButt
     for gamepad in manager.gamepad.iter() {
         for button_code in button_codes.iter() {
             if inputs.just_pressed(GamepadButton(*gamepad, *button_code)) {
-                println!("Pressed {:?}", GamepadButton(*gamepad, *button_code));
-            } else if inputs.just_released(GamepadButton(*gamepad, *button_code)) {
-                println!("Released {:?}", GamepadButton(*gamepad, *button_code));
+                let gamepad_input = gamepad_inputs.inputs.entry(gamepad.0).or_default();
+                match button_code {
+                    GamepadButtonType::RightTrigger2 => gamepad_input.right_trigger2 = true,
+                    _ => {}
+                }
             }
+            // if inputs.just_pressed(GamepadButton(*gamepad, *button_code)) {
+            //     println!("Pressed {:?}", GamepadButton(*gamepad, *button_code));
+            // } else if inputs.just_released(GamepadButton(*gamepad, *button_code)) {
+            //     println!("Released {:?}", GamepadButton(*gamepad, *button_code));
+            // }
         }
     }
 }

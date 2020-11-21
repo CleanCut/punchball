@@ -9,7 +9,19 @@ use bevy::{
 };
 use std::hash::Hash;
 
-//const MAX_PLAYERS: usize = 4;
+/// The radius of a player sprite, used for collision detection
+const COLLISION_RADIUS: f32 = 32.0;
+/// How far a joystick has to move before it's no longer considered neutral
+const DEAD_ZONE_THRESHOLD: f32 = 0.2;
+/// How quickly movement should slow to a stop when joystick is neutral
+const DRAG: f32 = 0.8;
+/// Maximum velocity a player can move by itself (can be exceeded when punched)
+const MAX_VELOCITY: f32 = 4.0;
+/// How fast a player accelerates
+const MOVE_SPEED: f32 = 25.0;
+/// How far from center of player to center of boxing glove that a punch reaches
+const PUNCH_LENGTH: f32 = 50.0;
+/// Where players 0, 1, 2, and 3 spawn on the screen.
 const STARTING_LOCATIONS: [[f32; 3]; 4] = [
     [-100.0, 100.0, 0.0],
     [100.0, 100.0, 0.0],
@@ -17,8 +29,10 @@ const STARTING_LOCATIONS: [[f32; 3]; 4] = [
     [-100.0, -100.0, 0.0],
 ];
 
+/// An alias to show that we're dealing with a player id
 type PlayerID = usize;
 
+/// Plugin for all resources and systems in this module
 #[derive(Default)]
 pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
@@ -31,6 +45,7 @@ impl Plugin for PlayerPlugin {
     }
 }
 
+/// Colors assigned to players
 pub struct PlayerColors(Vec<Color>);
 impl Default for PlayerColors {
     fn default() -> Self {
@@ -42,7 +57,10 @@ impl Default for PlayerColors {
         ])
     }
 }
+/// A component to use to store most player attributes. Translation, scale, and rotation are in a
+/// separate Transform component that Bevy provides.
 pub struct Player {
+    /// Player ID
     pub id: PlayerID,
     pub facing: Vec2,
     pub vel: Vec2,
@@ -59,30 +77,24 @@ impl Player {
         }
     }
 }
-/// Marks that a player is dead
+/// Used as a component to mark that a player is dead
 pub struct Dead {}
 
-/// Detect a player leaving the arena, and add a Dead component to him.
+/// Detect a player leaving the arena, and mark him dead.
 fn leave_arena_system(
     commands: &mut Commands,
-    mut player_transforms: Query<(Entity, &Children, &Transform, &Player), Without<Dead>>,
+    mut player_transforms: Query<(Entity, &Transform, &Player), Without<Dead>>,
     arena_transforms: Query<&Transform, With<Arena>>,
     mut draw_query: Query<&mut Draw>,
 ) {
     for arena_transform in arena_transforms.iter() {
-        for (entity, children, player_transform, player) in player_transforms.iter_mut() {
+        for (entity, player_transform, player) in player_transforms.iter_mut() {
             if (player_transform.translation - arena_transform.translation).length() > ARENA_RADIUS
             {
                 println!("Player {} dies", player.id);
                 commands.insert_one(entity, Dead {});
                 if let Ok(mut draw) = draw_query.get_mut(entity) {
                     draw.is_visible = false;
-                }
-                // And any children of the player, like the boxing glove
-                for child in children.iter() {
-                    if let Ok(mut draw) = draw_query.get_mut(*child) {
-                        draw.is_visible = false;
-                    }
                 }
             }
         }
@@ -93,10 +105,10 @@ fn leave_arena_system(
 pub fn dead_players_system(
     commands: &mut Commands,
     time: Res<Time>,
-    mut players: Query<(Entity, &Children, &mut Player, &mut Transform), With<Dead>>,
+    mut players: Query<(Entity, &mut Player, &mut Transform), With<Dead>>,
     mut draw_query: Query<&mut Draw>,
 ) {
-    for (entity, children, mut player, mut transform) in players.iter_mut() {
+    for (entity, mut player, mut transform) in players.iter_mut() {
         // Decrement the timer for how long the player has left to be dead
         player.respawn_timer.tick(time.delta_seconds);
         // Is the player done being dead?
@@ -113,12 +125,6 @@ pub fn dead_players_system(
             if let Ok(mut draw) = draw_query.get_mut(entity) {
                 draw.is_visible = true;
             }
-            // And any components of the player, like the glove
-            for child in children.iter() {
-                if let Ok(mut draw) = draw_query.get_mut(*child) {
-                    draw.is_visible = true;
-                }
-            }
         }
     }
 }
@@ -126,12 +132,6 @@ pub fn dead_players_system(
 fn angle_facing(v1: &Vec2, v2: &Vec2) -> f32 {
     (v2.y() - v1.y()).atan2(v2.x() - v1.x())
 }
-
-const DEAD_ZONE_THRESHOLD: f32 = 0.2;
-const DRAG: f32 = 0.8;
-const MOVE_SPEED: f32 = 25.0;
-const MAX_VELOCITY: f32 = 4.0;
-const COLLISION_RADIUS: f32 = 32.0; // Needs to match the size of the sprite
 
 #[derive(Copy, Clone, Default)]
 struct Collision {
@@ -185,7 +185,7 @@ impl Hash for Collision {
         let mut player_ids = vec![self.player_id1, self.player_id2];
         player_ids.sort();
         for player_id in player_ids {
-            self.player_id1.hash(state);
+            player_id.hash(state);
         }
     }
 }
@@ -223,9 +223,28 @@ pub fn player_physics(
             }
         }
     }
+
+    // For each player, store the direction and location of each punch
+    let mut punches = Vec::new();
+    for (player, transform) in player_query.iter_mut() {
+        if !gamepad_inputs
+            .inputs
+            .get(&player.id)
+            .unwrap()
+            .right_trigger2
+        {
+            continue;
+        }
+        punches.push(transform.translation + transform.forward() * PUNCH_LENGTH);
+    }
+
     // Iterate through each player and apply physics
     for (mut player, mut transform) in player_query.iter_mut() {
-        // Apply fixed drag so players slow to a stop
+        // Collect some info so we can deal with different slowing mechanics if you've been punched
+        let starting_velocity = player.vel.length();
+        let coming_down_to_max = starting_velocity > MAX_VELOCITY;
+
+        // Apply fixed drag so players slow to a stop eventually
         player.vel *= 1.0 - time.delta_seconds * DRAG;
 
         // Adjust velocity based on gamepad input
@@ -236,9 +255,21 @@ pub fn player_physics(
             *player.vel.x_mut() += left_x * time.delta_seconds * MOVE_SPEED;
             *player.vel.y_mut() += left_y * time.delta_seconds * MOVE_SPEED;
         }
-        if player.vel.length() > MAX_VELOCITY {
+        // Make sure velocity doesn't go too high
+        if coming_down_to_max {
+            // Recently punched, so let our velocity exceed max, but make sure it decreases each frame
+            if player.vel.length() > starting_velocity {
+                // let the player change direction, but cap the velocity at previous frame and add double drag
+                player.vel = player.vel.normalize()
+                    * starting_velocity
+                    * (1.0 - time.delta_seconds * DRAG * 2.0);
+            }
+        } else if player.vel.length() > MAX_VELOCITY {
+            // We're moving normally, so cap velocity
             player.vel = player.vel.normalize() * MAX_VELOCITY;
         }
+
+        // Process any punches that hit this player
 
         // Process this player's collisions, adjusting velocities accordingly
         for collision in player_collisions.iter() {
