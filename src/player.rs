@@ -5,6 +5,7 @@ use crate::{
     gamepad::GamepadInputs,
 };
 use bevy::{
+    math::Vec3Swizzles,
     prelude::*,
     utils::{AHashExt, HashMap, HashSet},
 };
@@ -22,8 +23,8 @@ impl Plugin for PlayerPlugin {
             .add_system(dead_players_system.system())
             .add_system(leave_arena_system.system())
             .add_system(player_join_system.system())
-            .add_system(player_physics.system())
-            .add_system(punch_animation.system());
+            .add_system(player_physics_system.system())
+            .add_system(punch_animation_system.system());
     }
 }
 
@@ -48,9 +49,6 @@ pub struct Player {
     pub vel: Vec2,
     pub respawn_timer: Timer,
 }
-
-const RESPAWN_DURATION: f32 = 2.0;
-const PUNCH_DRAWBACK_DURATION: f32 = 0.25;
 
 impl Player {
     pub fn new(id: PlayerID) -> Self {
@@ -92,22 +90,25 @@ fn leave_arena_system(
             {
                 println!("Player {} dies", player.id);
                 commands.insert_one(entity, Dead {});
-                if let Ok(mut draw) = draw_query.get_mut(entity) {
-                    draw.is_visible = false;
-                }
-                // And any components of the player, like the glove
-                for child in children.iter() {
-                    if let Ok(mut draw) = draw_query.get_mut(*child) {
-                        draw.is_visible = false;
-                    }
-                }
+                // if let Ok(mut draw) = draw_query.get_mut(entity) {
+                //     draw.is_visible = false;
+                // }
+                // // And any components of the player, like the glove
+                // for child in children.iter() {
+                //     if let Ok(mut draw) = draw_query.get_mut(*child) {
+                //         draw.is_visible = false;
+                //     }
+                // }
             }
         }
     }
 }
 
 /// Handle the punch animation
-pub fn punch_animation(time: Res<Time>, mut glove_query: Query<(&mut Glove, &mut Transform)>) {
+pub fn punch_animation_system(
+    time: Res<Time>,
+    mut glove_query: Query<(&mut Glove, &mut Transform)>,
+) {
     for (mut glove, mut transform) in glove_query.iter_mut() {
         glove.punch_timer.tick(time.delta_seconds);
         let punch_base_vec3 = Vec3::from(PUNCH_BASE_ARR3);
@@ -127,8 +128,12 @@ pub fn dead_players_system(
     for (entity, children, mut player, mut transform) in players.iter_mut() {
         // Decrement the timer for how long the player has left to be dead
         player.respawn_timer.tick(time.delta_seconds);
+        // Death animation
+        transform.scale = Vec3::one().lerp(Vec3::zero(), player.respawn_timer.percent());
         // Is the player done being dead?
         if player.respawn_timer.finished {
+            // Set the scale back to normal
+            transform.scale = Vec3::one();
             // Restart the timer for next time
             player.respawn_timer.reset();
             // Reset velocity
@@ -137,16 +142,16 @@ pub fn dead_players_system(
             transform.translation = STARTING_LOCATIONS[player.id].into();
             // Remove the "Dead" component
             commands.remove_one::<Dead>(entity);
-            // Make the player visible again
-            if let Ok(mut draw) = draw_query.get_mut(entity) {
-                draw.is_visible = true;
-            }
-            // And any components of the player, like the glove
-            for child in children.iter() {
-                if let Ok(mut draw) = draw_query.get_mut(*child) {
-                    draw.is_visible = true;
-                }
-            }
+            // // Make the player visible again
+            // if let Ok(mut draw) = draw_query.get_mut(entity) {
+            //     draw.is_visible = true;
+            // }
+            // // And any components of the player, like the glove
+            // for child in children.iter() {
+            //     if let Ok(mut draw) = draw_query.get_mut(*child) {
+            //         draw.is_visible = true;
+            //     }
+            // }
         }
     }
 }
@@ -212,7 +217,7 @@ impl Hash for Collision {
     }
 }
 
-pub fn player_physics(
+pub fn player_physics_system(
     time: Res<Time>,
     gamepad_inputs: Res<GamepadInputs>,
     mut player_query: Query<(&Children, &mut Player, &mut Transform), Without<Dead>>,
@@ -248,7 +253,7 @@ pub fn player_physics(
     }
 
     // For each player, store the direction and location of each punch
-    let mut punches: Vec<(PlayerID, Vec2)> = Vec::new();
+    let mut punches: Vec<(PlayerID, Quat, Vec2)> = Vec::new();
     for (children, player, transform) in player_query.iter_mut() {
         if !gamepad_inputs
             .inputs
@@ -266,8 +271,10 @@ pub fn player_physics(
         }
         punches.push((
             player.id,
+            transform.rotation,
             Vec2::from(
-                transform.translation + transform.rotation * (Vec3::unit_x() * PUNCH_LENGTH),
+                transform.translation
+                    + transform.rotation * (Vec3::unit_x() * (PUNCH_BASE + PUNCH_LENGTH)),
             ),
         ));
     }
@@ -304,13 +311,13 @@ pub fn player_physics(
         }
 
         // Process any punches that hit this player -- a player's own punch won't collide, because it doesn't overlap the instant it is fully extended
-        for (player_id, punch) in &punches {
+        for (player_id, direction, punch) in &punches {
             if *player_id == player.id {
                 continue;
             }
             let punch_vector = Vec2::from(transform.translation) - *punch;
             if punch_vector.length() < 2.0 * COLLISION_RADIUS {
-                let delta = punch_vector.normalize() * (3.0 * MAX_VELOCITY);
+                let delta = ((*direction * Vec3::unit_x()) * (3.0 * MAX_VELOCITY)).xy();
                 player.vel = player.vel + delta;
             }
         }
