@@ -1,3 +1,4 @@
+use crate::prelude::*;
 use crate::{
     arena::{Arena, ARENA_RADIUS},
     event::{EventListeners, PlayerSpawnEvent},
@@ -8,26 +9,6 @@ use bevy::{
     utils::{AHashExt, HashMap, HashSet},
 };
 use std::hash::Hash;
-
-/// The radius of a player sprite, used for collision detection
-const COLLISION_RADIUS: f32 = 32.0;
-/// How far a joystick has to move before it's no longer considered neutral
-const DEAD_ZONE_THRESHOLD: f32 = 0.2;
-/// How quickly movement should slow to a stop when joystick is neutral
-const DRAG: f32 = 0.8;
-/// Maximum velocity a player can move by itself (can be exceeded when punched)
-const MAX_VELOCITY: f32 = 4.0;
-/// How fast a player accelerates
-const MOVE_SPEED: f32 = 25.0;
-/// How far from center of player to center of boxing glove that a punch reaches
-const PUNCH_LENGTH: f32 = 50.0;
-/// Where players 0, 1, 2, and 3 spawn on the screen.
-const STARTING_LOCATIONS: [[f32; 3]; 4] = [
-    [-100.0, 100.0, 0.0],
-    [100.0, 100.0, 0.0],
-    [100.0, -100.0, 0.0],
-    [-100.0, -100.0, 0.0],
-];
 
 /// An alias to show that we're dealing with a player id
 type PlayerID = usize;
@@ -65,7 +46,11 @@ pub struct Player {
     pub facing: Vec2,
     pub vel: Vec2,
     pub respawn_timer: Timer,
+    pub punch_timer: Timer,
 }
+
+const RESPAWN_DURATION: f32 = 2.0;
+const PUNCH_DRAWBACK_DURATION: f32 = 0.25;
 
 impl Player {
     pub fn new(id: PlayerID) -> Self {
@@ -73,12 +58,16 @@ impl Player {
             id,
             facing: Vec2::unit_x(),
             vel: Vec2::zero(),
-            respawn_timer: Timer::from_seconds(2.0, false),
+            respawn_timer: Timer::from_seconds(RESPAWN_DURATION, false),
+            punch_timer: Timer::from_seconds(PUNCH_DRAWBACK_DURATION, false),
         }
     }
 }
 /// Used as a component to mark that a player is dead
 pub struct Dead {}
+
+/// Used as a component to mark that something is a boxing glove
+pub struct Glove {}
 
 /// Detect a player leaving the arena, and mark him dead.
 fn leave_arena_system(
@@ -96,6 +85,25 @@ fn leave_arena_system(
                 if let Ok(mut draw) = draw_query.get_mut(entity) {
                     draw.is_visible = false;
                 }
+            }
+        }
+    }
+}
+
+/// Handle the punch animation
+pub fn punch_animation(
+    time: Res<Time>,
+    mut player_query: Query<(Entity, &mut Player, &Transform, &Children)>,
+    mut glove_query: Query<(&mut Glove, &mut Transform)>,
+) {
+    for (entity, mut player, transform, children) in player_query.iter_mut() {
+        for child in children.iter() {
+            if let Ok((mut glove, mut glove_transform)) = glove_query.get_mut(*child) {
+                player.punch_timer.tick(time.delta_seconds);
+                let punch_base_vec3 = Vec3::from(PUNCH_BASE_ARR3);
+                let punch_extended_vec3 = Vec3::from(PUNCH_EXTENDED_ARR3);
+                glove_transform.translation =
+                    punch_base_vec3.lerp(punch_extended_vec3, PUNCH_DRAWBACK_DURATION)
             }
         }
     }
@@ -130,7 +138,7 @@ pub fn dead_players_system(
 }
 
 fn angle_facing(v1: &Vec2, v2: &Vec2) -> f32 {
-    (v2.y() - v1.y()).atan2(v2.x() - v1.x())
+    (v2.y - v1.y).atan2(v2.x - v1.x)
 }
 
 #[derive(Copy, Clone, Default)]
@@ -193,7 +201,8 @@ impl Hash for Collision {
 pub fn player_physics(
     time: Res<Time>,
     gamepad_inputs: Res<GamepadInputs>,
-    mut player_query: Query<(&mut Player, &mut Transform), Without<Dead>>,
+    mut player_query: Query<(&mut Player, &mut Transform), Without<(Dead, Glove)>>,
+    mut glove_query: Query<(&mut Transform, &mut Glove)>,
 ) {
     // Iterate through each player and collect positions so we can do collision detection
     let mut player_positions: HashMap<PlayerID, Vec2> = HashMap::new();
@@ -225,7 +234,7 @@ pub fn player_physics(
     }
 
     // For each player, store the direction and location of each punch
-    let mut punches = Vec::new();
+    let mut punches: Vec<(PlayerID, Vec2)> = Vec::new();
     for (player, transform) in player_query.iter_mut() {
         if !gamepad_inputs
             .inputs
@@ -235,7 +244,13 @@ pub fn player_physics(
         {
             continue;
         }
-        punches.push(transform.translation + transform.forward() * PUNCH_LENGTH);
+        println!("Player {} punches", player.id);
+        punches.push((
+            player.id,
+            Vec2::from(
+                transform.translation + transform.rotation * (Vec3::unit_x() * PUNCH_LENGTH),
+            ),
+        ));
     }
 
     // Iterate through each player and apply physics
@@ -249,11 +264,11 @@ pub fn player_physics(
 
         // Adjust velocity based on gamepad input
         let input = gamepad_inputs.inputs.get(&player.id).unwrap();
-        let left_x = input.left_stick.x();
-        let left_y = input.left_stick.y();
+        let left_x = input.left_stick.x;
+        let left_y = input.left_stick.y;
         if Vec2::new(left_x, left_y).length() > DEAD_ZONE_THRESHOLD {
-            *player.vel.x_mut() += left_x * time.delta_seconds * MOVE_SPEED;
-            *player.vel.y_mut() += left_y * time.delta_seconds * MOVE_SPEED;
+            player.vel.x += left_x * time.delta_seconds * MOVE_SPEED;
+            player.vel.y += left_y * time.delta_seconds * MOVE_SPEED;
         }
         // Make sure velocity doesn't go too high
         if coming_down_to_max {
@@ -269,7 +284,17 @@ pub fn player_physics(
             player.vel = player.vel.normalize() * MAX_VELOCITY;
         }
 
-        // Process any punches that hit this player
+        // Process any punches that hit this player -- a player's own punch won't collide, because it doesn't overlap the instant it is fully extended
+        for (player_id, punch) in &punches {
+            if *player_id == player.id {
+                continue;
+            }
+            let punch_vector = Vec2::from(transform.translation) - *punch;
+            if punch_vector.length() < 2.0 * COLLISION_RADIUS {
+                let delta = punch_vector.normalize() * (3.0 * MAX_VELOCITY);
+                player.vel = player.vel + delta;
+            }
+        }
 
         // Process this player's collisions, adjusting velocities accordingly
         for collision in player_collisions.iter() {
@@ -279,19 +304,18 @@ pub fn player_physics(
         }
 
         // Apply velocity to position
-        *transform.translation.x_mut() += player.vel.x() * time.delta_seconds * MOVE_SPEED;
-        *transform.translation.y_mut() += player.vel.y() * time.delta_seconds * MOVE_SPEED;
+        transform.translation.x += player.vel.x * time.delta_seconds * MOVE_SPEED;
+        transform.translation.y += player.vel.y * time.delta_seconds * MOVE_SPEED;
 
         // Set direction of player with right stick
-        let facing_vec = Vec2::new(input.right_stick.x(), input.right_stick.y());
-        if facing_vec.length() > 0.1 {
-            player.facing = facing_vec;
+        let facing_vec = Vec2::new(input.right_stick.x, input.right_stick.y);
+        if facing_vec.length() > DEAD_ZONE_THRESHOLD {
+            let quat = Quat::from_axis_angle(
+                Vec3::new(0.0, 0.0, 1.0),
+                angle_facing(&Vec2::new(0.0, 0.0), &facing_vec),
+            );
+            transform.rotation = quat;
         }
-        let quat = Quat::from_axis_angle(
-            Vec3::new(0.0, 0.0, 1.0),
-            angle_facing(&Vec2::new(0.0, 0.0), &player.facing),
-        );
-        transform.rotation = quat;
     }
 }
 
@@ -314,7 +338,7 @@ pub fn player_join_system(
         };
         let circle_handle = materials.add(circle_material);
         commands
-            .spawn(SpriteComponents {
+            .spawn(SpriteBundle {
                 material: circle_handle.clone(),
                 transform: Transform::from_translation(
                     STARTING_LOCATIONS[player_spawn_event.id].into(),
@@ -324,11 +348,13 @@ pub fn player_join_system(
             .with(Player::new(player_spawn_event.id))
             .with_children(|parent| {
                 // Punching Glove
-                parent.spawn(SpriteComponents {
-                    material: materials.add(glove.into()),
-                    transform: Transform::from_translation(Vec3::new(40.0, 0.0, 0.1)),
-                    ..Default::default()
-                });
+                parent
+                    .spawn(SpriteBundle {
+                        material: materials.add(glove.into()),
+                        transform: Transform::from_translation(Vec3::from(PUNCH_BASE_ARR3)),
+                        ..Default::default()
+                    })
+                    .with(Glove {});
             });
     }
 }

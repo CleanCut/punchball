@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::prelude::LAYER_ARENA;
+
 pub const ARENA_RADIUS: f32 = 384.0; // based off of circle radius in the PNG
 
 #[derive(Default)]
@@ -19,9 +21,9 @@ fn spawn_arena_system(
 ) {
     let arena_texture = asset_server.load("arena.png");
     commands
-        .spawn(SpriteComponents {
+        .spawn(SpriteBundle {
             material: materials.add(arena_texture.into()),
-            transform: Transform::from_translation(Vec3::new(0.0, 0.0, -0.1)),
+            transform: Transform::from_translation(Vec3::new(0.0, 0.0, LAYER_ARENA)),
             ..Default::default()
         })
         .with(Arena);

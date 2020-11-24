@@ -87,6 +87,10 @@ pub fn button_system(
         GamepadButtonType::DPadLeft,
         GamepadButtonType::DPadRight,
     ];
+    // Reset input values
+    for (_, gamepad_input) in gamepad_inputs.inputs.iter_mut() {
+        gamepad_input.right_trigger2 = false;
+    }
     for gamepad in manager.gamepad.iter() {
         for button_code in button_codes.iter() {
             if inputs.just_pressed(GamepadButton(*gamepad, *button_code)) {
@@ -125,10 +129,10 @@ pub fn axis_system(
             if let Some(value) = axes.get(GamepadAxis(*gamepad, *axis_code)) {
                 let gamepad_input = gamepad_inputs.inputs.entry(gamepad.0).or_default();
                 match axis_code {
-                    GamepadAxisType::LeftStickX => gamepad_input.left_stick.set_x(value),
-                    GamepadAxisType::LeftStickY => gamepad_input.left_stick.set_y(value),
-                    GamepadAxisType::RightStickX => gamepad_input.right_stick.set_x(value),
-                    GamepadAxisType::RightStickY => gamepad_input.right_stick.set_y(value),
+                    GamepadAxisType::LeftStickX => gamepad_input.left_stick.x = value,
+                    GamepadAxisType::LeftStickY => gamepad_input.left_stick.y = value,
+                    GamepadAxisType::RightStickX => gamepad_input.right_stick.x = value,
+                    GamepadAxisType::RightStickY => gamepad_input.right_stick.y = value,
                     _ => {}
                 }
             }

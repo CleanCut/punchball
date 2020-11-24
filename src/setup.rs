@@ -18,5 +18,5 @@ impl Plugin for SetupPlugin {
 }
 
 fn setup(commands: &mut Commands) {
-    commands.spawn(Camera2dComponents::default());
+    commands.spawn(Camera2dBundle::default());
 }
