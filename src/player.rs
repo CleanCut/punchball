@@ -22,7 +22,8 @@ impl Plugin for PlayerPlugin {
             .add_system(dead_players_system.system())
             .add_system(leave_arena_system.system())
             .add_system(player_join_system.system())
-            .add_system(player_physics.system());
+            .add_system(player_physics.system())
+            .add_system(punch_animation.system());
     }
 }
 
@@ -46,7 +47,6 @@ pub struct Player {
     pub facing: Vec2,
     pub vel: Vec2,
     pub respawn_timer: Timer,
-    pub punch_timer: Timer,
 }
 
 const RESPAWN_DURATION: f32 = 2.0;
@@ -59,7 +59,6 @@ impl Player {
             facing: Vec2::unit_x(),
             vel: Vec2::zero(),
             respawn_timer: Timer::from_seconds(RESPAWN_DURATION, false),
-            punch_timer: Timer::from_seconds(PUNCH_DRAWBACK_DURATION, false),
         }
     }
 }
@@ -67,17 +66,28 @@ impl Player {
 pub struct Dead {}
 
 /// Used as a component to mark that something is a boxing glove
-pub struct Glove {}
+pub struct Glove {
+    pub punch_timer: Timer,
+}
+
+impl Glove {
+    pub fn new() -> Self {
+        let mut punch_timer = Timer::from_seconds(PUNCH_DRAWBACK_DURATION, false);
+        // For the sake of animation, the timer should be "finished" to start with.
+        punch_timer.tick(PUNCH_DRAWBACK_DURATION * 2.0);
+        Self { punch_timer }
+    }
+}
 
 /// Detect a player leaving the arena, and mark him dead.
 fn leave_arena_system(
     commands: &mut Commands,
-    mut player_transforms: Query<(Entity, &Transform, &Player), Without<Dead>>,
+    mut player_transforms: Query<(Entity, &Children, &Transform, &Player), Without<Dead>>,
     arena_transforms: Query<&Transform, With<Arena>>,
     mut draw_query: Query<&mut Draw>,
 ) {
     for arena_transform in arena_transforms.iter() {
-        for (entity, player_transform, player) in player_transforms.iter_mut() {
+        for (entity, children, player_transform, player) in player_transforms.iter_mut() {
             if (player_transform.translation - arena_transform.translation).length() > ARENA_RADIUS
             {
                 println!("Player {} dies", player.id);
@@ -85,27 +95,25 @@ fn leave_arena_system(
                 if let Ok(mut draw) = draw_query.get_mut(entity) {
                     draw.is_visible = false;
                 }
+                // And any components of the player, like the glove
+                for child in children.iter() {
+                    if let Ok(mut draw) = draw_query.get_mut(*child) {
+                        draw.is_visible = false;
+                    }
+                }
             }
         }
     }
 }
 
 /// Handle the punch animation
-pub fn punch_animation(
-    time: Res<Time>,
-    mut player_query: Query<(Entity, &mut Player, &Transform, &Children)>,
-    mut glove_query: Query<(&mut Glove, &mut Transform)>,
-) {
-    for (entity, mut player, transform, children) in player_query.iter_mut() {
-        for child in children.iter() {
-            if let Ok((mut glove, mut glove_transform)) = glove_query.get_mut(*child) {
-                player.punch_timer.tick(time.delta_seconds);
-                let punch_base_vec3 = Vec3::from(PUNCH_BASE_ARR3);
-                let punch_extended_vec3 = Vec3::from(PUNCH_EXTENDED_ARR3);
-                glove_transform.translation =
-                    punch_base_vec3.lerp(punch_extended_vec3, PUNCH_DRAWBACK_DURATION)
-            }
-        }
+pub fn punch_animation(time: Res<Time>, mut glove_query: Query<(&mut Glove, &mut Transform)>) {
+    for (mut glove, mut transform) in glove_query.iter_mut() {
+        glove.punch_timer.tick(time.delta_seconds);
+        let punch_base_vec3 = Vec3::from(PUNCH_BASE_ARR3);
+        let punch_extended_vec3 = Vec3::from(PUNCH_EXTENDED_ARR3);
+        transform.translation =
+            punch_base_vec3.lerp(punch_extended_vec3, glove.punch_timer.percent_left());
     }
 }
 
@@ -113,10 +121,10 @@ pub fn punch_animation(
 pub fn dead_players_system(
     commands: &mut Commands,
     time: Res<Time>,
-    mut players: Query<(Entity, &mut Player, &mut Transform), With<Dead>>,
+    mut players: Query<(Entity, &Children, &mut Player, &mut Transform), With<Dead>>,
     mut draw_query: Query<&mut Draw>,
 ) {
-    for (entity, mut player, mut transform) in players.iter_mut() {
+    for (entity, children, mut player, mut transform) in players.iter_mut() {
         // Decrement the timer for how long the player has left to be dead
         player.respawn_timer.tick(time.delta_seconds);
         // Is the player done being dead?
@@ -132,6 +140,12 @@ pub fn dead_players_system(
             // Make the player visible again
             if let Ok(mut draw) = draw_query.get_mut(entity) {
                 draw.is_visible = true;
+            }
+            // And any components of the player, like the glove
+            for child in children.iter() {
+                if let Ok(mut draw) = draw_query.get_mut(*child) {
+                    draw.is_visible = true;
+                }
             }
         }
     }
@@ -201,13 +215,13 @@ impl Hash for Collision {
 pub fn player_physics(
     time: Res<Time>,
     gamepad_inputs: Res<GamepadInputs>,
-    mut player_query: Query<(&mut Player, &mut Transform), Without<(Dead, Glove)>>,
-    mut glove_query: Query<(&mut Transform, &mut Glove)>,
+    mut player_query: Query<(&Children, &mut Player, &mut Transform), Without<Dead>>,
+    mut glove_query: Query<&mut Glove>,
 ) {
     // Iterate through each player and collect positions so we can do collision detection
     let mut player_positions: HashMap<PlayerID, Vec2> = HashMap::new();
     let mut player_velocities: HashMap<PlayerID, Vec2> = HashMap::new();
-    for (player, transform) in player_query.iter_mut() {
+    for (_, player, transform) in player_query.iter_mut() {
         player_positions.insert(player.id, transform.translation.into());
         player_velocities.insert(player.id, player.vel);
     }
@@ -235,7 +249,7 @@ pub fn player_physics(
 
     // For each player, store the direction and location of each punch
     let mut punches: Vec<(PlayerID, Vec2)> = Vec::new();
-    for (player, transform) in player_query.iter_mut() {
+    for (children, player, transform) in player_query.iter_mut() {
         if !gamepad_inputs
             .inputs
             .get(&player.id)
@@ -245,6 +259,11 @@ pub fn player_physics(
             continue;
         }
         println!("Player {} punches", player.id);
+        for child in children.iter() {
+            if let Ok(mut glove) = glove_query.get_mut(*child) {
+                glove.punch_timer.reset();
+            }
+        }
         punches.push((
             player.id,
             Vec2::from(
@@ -254,7 +273,7 @@ pub fn player_physics(
     }
 
     // Iterate through each player and apply physics
-    for (mut player, mut transform) in player_query.iter_mut() {
+    for (_, mut player, mut transform) in player_query.iter_mut() {
         // Collect some info so we can deal with different slowing mechanics if you've been punched
         let starting_velocity = player.vel.length();
         let coming_down_to_max = starting_velocity > MAX_VELOCITY;
@@ -354,7 +373,7 @@ pub fn player_join_system(
                         transform: Transform::from_translation(Vec3::from(PUNCH_BASE_ARR3)),
                         ..Default::default()
                     })
-                    .with(Glove {});
+                    .with(Glove::new());
             });
     }
 }
