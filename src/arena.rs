@@ -1,8 +1,6 @@
 use bevy::prelude::*;
 
-use crate::prelude::LAYER_ARENA;
-
-pub const ARENA_RADIUS: f32 = 384.0; // based off of circle radius in the PNG
+use crate::prelude::*;
 
 #[derive(Default)]
 pub struct ArenaPlugin;

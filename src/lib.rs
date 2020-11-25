@@ -5,6 +5,8 @@ pub mod player;
 pub mod setup;
 
 mod prelude {
+    /// Radius of the arena circle -- based off of circle radius in the PNG
+    pub const ARENA_RADIUS: f32 = 384.0;
     /// The radius of a player sprite, used for collision detection
     pub const COLLISION_RADIUS: f32 = 32.0;
     /// How far a joystick has to move before it's no longer considered neutral
