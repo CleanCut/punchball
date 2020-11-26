@@ -11,8 +11,8 @@ edition = "2018"
 
 [dependencies]
 # bevy = "0.3.0"
-#bevy = { git = "https://github.com/bevyengine/bevy", rev="ec7ad42"}
-bevy = { git = "https://github.com/CleanCut/bevy", branch="timer-ergonomics" }
+bevy = { git = "https://github.com/bevyengine/bevy", rev="de5ff0aa5ae5933e008023614f537d416e475c2c"}
+#bevy = { git = "https://github.com/CleanCut/bevy", branch="timer-ergonomics" }
 
 # Compile all the *dependencies* in optimized release mode even if `--release` is not passed in
 [profile.dev]

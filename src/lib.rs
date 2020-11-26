@@ -20,7 +20,7 @@ mod prelude {
     /// Z depth for players (positive Z is towards the viewer, negative Z is into the screen)
     pub const LAYER_PLAYER: f32 = 0.0;
     /// Maximum velocity a player can move by itself (can be exceeded when punched)
-    pub const MAX_VELOCITY: f32 = 4.0;
+    pub const MAX_VELOCITY: f32 = 6.0;
     /// How fast a player accelerates
     pub const MOVE_SPEED: f32 = 25.0;
     /// How far away from the center of the player that the boxing glove rests
