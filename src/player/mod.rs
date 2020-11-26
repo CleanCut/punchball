@@ -246,6 +246,13 @@ pub fn player_physics_system(
                 // Don't collide if we aren't moving toward each other (let them depenetrate)
                 let relative_vel = collision.vel2 - collision.vel1;
                 if !moving_towards(collision.pos1, collision.pos2, relative_vel) {
+                    // Already still or moving away, but overlapping. Let's give the player a nudge.
+                    player.vel.x *= 1.0 + MOVE_SPEED * time.delta_seconds;
+                    player.vel.y *= 1.0 + MOVE_SPEED * time.delta_seconds;
+                    // ...but don't shoot across the screen like a bullet. Clamp to max velocity.
+                    if player.vel.length() > MAX_VELOCITY {
+                        player.vel = player.vel.normalize() * MAX_VELOCITY;
+                    }
                     continue;
                 }
                 // Accept the new velocity calculated by the collision
