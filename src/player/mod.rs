@@ -84,6 +84,12 @@ fn angle_facing(v1: &Vec2, v2: &Vec2) -> f32 {
     (v2.y - v1.y).atan2(v2.x - v1.x)
 }
 
+/// Determine whether something with a position and velocity is moving towards or away from a point
+fn moving_towards(toward_pos: Vec2, obj_pos: Vec2, obj_vel: Vec2) -> bool {
+    let position_vector = toward_pos - obj_pos;
+    position_vector.dot(obj_vel) > 0.0
+}
+
 /// Animate and respawn dead players
 pub fn dead_players_system(
     commands: &mut Commands,
@@ -237,6 +243,12 @@ pub fn player_physics_system(
         // Process this player's collisions, adjusting velocities accordingly
         for collision in player_collisions.iter() {
             if let Some(new_velocity) = collision.new_velocity(player.id) {
+                // Don't collide if we aren't moving toward each other (let them depenetrate)
+                let relative_vel = collision.vel2 - collision.vel1;
+                if !moving_towards(collision.pos1, collision.pos2, relative_vel) {
+                    continue;
+                }
+                // Accept the new velocity calculated by the collision
                 player.vel = new_velocity;
             }
         }
