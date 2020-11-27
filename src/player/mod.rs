@@ -19,11 +19,11 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_resource(PlayerColors::default())
-            .add_system(dead_players_system.system())
-            .add_system(leave_arena_system.system())
-            .add_system(player_join_system.system())
-            .add_system(player_physics_system.system())
-            .add_system(punch_animation_system.system());
+            .add_system(dead_players_system)
+            .add_system(leave_arena_system)
+            .add_system(player_join_system)
+            .add_system(player_physics_system)
+            .add_system(punch_animation_system);
     }
 }
 

@@ -13,7 +13,7 @@ impl Plugin for SetupPlugin {
                 cursor_locked: false,
                 ..Default::default()
             })
-            .add_startup_system(setup.system());
+            .add_startup_system(setup);
     }
 }
 

@@ -9,10 +9,10 @@ impl Plugin for GamepadPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_resource(GamepadManager::default())
             .add_resource(GamepadInputs::default())
-            .add_system(axis_system.system())
-            .add_startup_system(connection_system.system())
-            .add_system(connection_system.system())
-            .add_system(button_system.system());
+            .add_system(axis_system)
+            .add_startup_system(connection_system)
+            .add_system(connection_system)
+            .add_system(button_system);
     }
 }
 

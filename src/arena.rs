@@ -6,7 +6,7 @@ use crate::prelude::*;
 pub struct ArenaPlugin;
 impl Plugin for ArenaPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_startup_system(spawn_arena_system.system());
+        app.add_startup_system(spawn_arena_system);
     }
 }
 
