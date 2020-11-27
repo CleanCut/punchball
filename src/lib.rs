@@ -33,6 +33,10 @@ mod prelude {
     pub const PUNCH_EXTENDED_ARR3: [f32; 3] = [PUNCH_BASE + PUNCH_LENGTH, 0.0, LAYER_GLOVE];
     /// How far the boxing glove punches outward
     pub const PUNCH_LENGTH: f32 = 50.0;
+    /// How much the punched player gets pushed back
+    pub const PUNCH_PUSHBACK_OTHER: f32 = 3.0;
+    /// How much the player doing the punching gets pushed back
+    pub const PUNCH_PUSHBACK_SELF: f32 = 1.0;
     /// How long it takes to shrink and respawn once you've died
     pub const RESPAWN_DURATION: f32 = 1.5;
     /// Where players 0, 1, 2, and 3 spawn on the screen.

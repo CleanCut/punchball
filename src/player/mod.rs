@@ -191,6 +191,33 @@ pub fn player_physics_system(
             ),
         ));
     }
+    // For each punch, store velocity deltas for who got punched and who got pushed back from
+    // punching someone else, to be resolved during the physics step.
+    let mut punch_vel_deltas: HashMap<PlayerID, Vec<Vec2>> = HashMap::new();
+    for (_, punchee, transform) in player_query.iter_mut() {
+        for (puncher_id, direction, punch) in &punches {
+            // Players are unable to punch themselves
+            if *puncher_id == punchee.id {
+                continue;
+            }
+            let punch_vector = Vec2::from(transform.translation) - *punch;
+            if punch_vector.length() < 2.0 * COLLISION_RADIUS {
+                let punch_delta =
+                    ((*direction * Vec3::unit_x()) * (PUNCH_PUSHBACK_OTHER * MAX_VELOCITY)).xy();
+                punch_vel_deltas
+                    .entry(punchee.id)
+                    .or_default()
+                    .push(punch_delta);
+                let pushback_delta = ((*direction * Vec3::unit_x())
+                    * (-1.0 * PUNCH_PUSHBACK_SELF * MAX_VELOCITY))
+                    .xy();
+                punch_vel_deltas
+                    .entry(*puncher_id)
+                    .or_default()
+                    .push(pushback_delta);
+            }
+        }
+    }
 
     // Iterate through each player and apply physics
     for (_, mut player, mut transform) in player_query.iter_mut() {
@@ -223,14 +250,21 @@ pub fn player_physics_system(
             player.vel = player.vel.normalize() * MAX_VELOCITY;
         }
 
-        // Process any punches that hit this player -- a player's own punch won't collide, because it doesn't overlap the instant it is fully extended
-        for (player_id, direction, punch) in &punches {
-            if *player_id == player.id {
-                continue;
-            }
-            let punch_vector = Vec2::from(transform.translation) - *punch;
-            if punch_vector.length() < 2.0 * COLLISION_RADIUS {
-                let delta = ((*direction * Vec3::unit_x()) * (3.0 * MAX_VELOCITY)).xy();
+        // // Process any punches that hit this player
+        // for (player_id, direction, punch) in &punches {
+        //     if *player_id == player.id {
+        //         continue;
+        //     }
+        //     let punch_vector = Vec2::from(transform.translation) - *punch;
+        //     if punch_vector.length() < 2.0 * COLLISION_RADIUS {
+        //         let delta = ((*direction * Vec3::unit_x()) * (3.0 * MAX_VELOCITY)).xy();
+        //         player.vel = player.vel + delta;
+        //     }
+        // }
+
+        // Process any punches (or pushbacks from punches) that affect velocity - these can exceed max velocity
+        if let Some(vel_deltas) = punch_vel_deltas.get(&player.id) {
+            for &delta in vel_deltas {
                 player.vel = player.vel + delta;
             }
         }
