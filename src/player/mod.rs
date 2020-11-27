@@ -79,11 +79,6 @@ impl Glove {
     }
 }
 
-/// Determine the angle from the x axis in radians between v1 as the origin and v2
-fn angle_facing(v1: &Vec2, v2: &Vec2) -> f32 {
-    (v2.y - v1.y).atan2(v2.x - v1.x)
-}
-
 /// Determine whether something with a position and velocity is moving towards or away from a point
 fn moving_towards(toward_pos: Vec2, obj_pos: Vec2, obj_vel: Vec2) -> bool {
     let position_vector = toward_pos - obj_pos;
@@ -269,7 +264,7 @@ pub fn player_physics_system(
         if facing_vec.length() > DEAD_ZONE_THRESHOLD {
             let quat = Quat::from_axis_angle(
                 Vec3::new(0.0, 0.0, 1.0),
-                angle_facing(&Vec2::new(0.0, 0.0), &facing_vec),
+                Vec2::new(1.0, 0.0).angle_between(facing_vec),
             );
             transform.rotation = quat;
         }
