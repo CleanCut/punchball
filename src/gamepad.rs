@@ -1,6 +1,9 @@
 use crate::event::PlayerSpawnEvent;
-use bevy::input::gamepad::{Gamepad, GamepadButton, GamepadEvent, GamepadEventType};
 use bevy::prelude::*;
+use bevy::{
+    app::AppExit,
+    input::gamepad::{Gamepad, GamepadButton, GamepadEvent, GamepadEventType},
+};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Default)]
@@ -10,9 +13,10 @@ impl Plugin for GamepadPlugin {
         app.add_resource(GamepadManager::default())
             .add_resource(GamepadInputs::default())
             .add_system(axis_system)
+            .add_system(button_system)
             .add_startup_system(connection_system)
             .add_system(connection_system)
-            .add_system(button_system);
+            .add_system(keyboard_quit_system);
     }
 }
 
@@ -61,10 +65,22 @@ pub fn connection_system(
     }
 }
 
+/// Let people quit via the keyboard
+fn keyboard_quit_system(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut app_exit_events: ResMut<Events<AppExit>>,
+) {
+    if keyboard_input.just_pressed(KeyCode::Escape) {
+        println!("Thank you for playing!");
+        app_exit_events.send(AppExit);
+    }
+}
+
 pub fn button_system(
     manager: Res<GamepadManager>,
     inputs: Res<Input<GamepadButton>>,
     mut gamepad_inputs: ResMut<GamepadInputs>,
+    mut app_exit_events: ResMut<Events<AppExit>>,
 ) {
     let button_codes = [
         GamepadButtonType::South,
@@ -95,6 +111,10 @@ pub fn button_system(
             if inputs.pressed(GamepadButton(*gamepad, *button_code)) {
                 match button_code {
                     GamepadButtonType::RightTrigger2 => right_trigger2 = true,
+                    GamepadButtonType::Start => {
+                        println!("Thank you for playing!");
+                        app_exit_events.send(AppExit);
+                    }
                     _ => {}
                 }
             }
