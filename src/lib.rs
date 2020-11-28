@@ -46,4 +46,6 @@ mod prelude {
         [100.0, -100.0, LAYER_PLAYER],
         [-100.0, -100.0, LAYER_PLAYER],
     ];
+    /// How fast a player turns
+    pub const TURN_SPEED: f32 = 6.0;
 }

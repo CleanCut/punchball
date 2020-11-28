@@ -250,18 +250,6 @@ pub fn player_physics_system(
             player.vel = player.vel.normalize() * MAX_VELOCITY;
         }
 
-        // // Process any punches that hit this player
-        // for (player_id, direction, punch) in &punches {
-        //     if *player_id == player.id {
-        //         continue;
-        //     }
-        //     let punch_vector = Vec2::from(transform.translation) - *punch;
-        //     if punch_vector.length() < 2.0 * COLLISION_RADIUS {
-        //         let delta = ((*direction * Vec3::unit_x()) * (3.0 * MAX_VELOCITY)).xy();
-        //         player.vel = player.vel + delta;
-        //     }
-        // }
-
         // Process any punches (or pushbacks from punches) that affect velocity - these can exceed max velocity
         if let Some(vel_deltas) = punch_vel_deltas.get(&player.id) {
             for &delta in vel_deltas {
@@ -300,7 +288,15 @@ pub fn player_physics_system(
                 Vec3::new(0.0, 0.0, 1.0),
                 Vec2::new(1.0, 0.0).angle_between(facing_vec),
             );
-            transform.rotation = quat;
+            // "Smooth" turning
+            if transform.rotation.dot(quat) >= 0.0 {
+                transform.rotation = transform
+                    .rotation
+                    .slerp(quat, TURN_SPEED * time.delta_seconds);
+            } else {
+                transform.rotation =
+                    (transform.rotation * -1.0).slerp(quat, TURN_SPEED * time.delta_seconds);
+            }
         }
     }
 }
