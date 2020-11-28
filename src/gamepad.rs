@@ -88,15 +88,13 @@ pub fn button_system(
         GamepadButtonType::DPadRight,
     ];
     // Reset input values
-    for (_, gamepad_input) in gamepad_inputs.inputs.iter_mut() {
-        gamepad_input.right_trigger2 = false;
-    }
     for gamepad in manager.gamepad.iter() {
+        let gamepad_input = gamepad_inputs.inputs.entry(gamepad.0).or_default();
+        let mut right_trigger2 = false;
         for button_code in button_codes.iter() {
-            if inputs.just_pressed(GamepadButton(*gamepad, *button_code)) {
-                let gamepad_input = gamepad_inputs.inputs.entry(gamepad.0).or_default();
+            if inputs.pressed(GamepadButton(*gamepad, *button_code)) {
                 match button_code {
-                    GamepadButtonType::RightTrigger2 => gamepad_input.right_trigger2 = true,
+                    GamepadButtonType::RightTrigger2 => right_trigger2 = true,
                     _ => {}
                 }
             }
@@ -106,6 +104,7 @@ pub fn button_system(
             //     println!("Released {:?}", GamepadButton(*gamepad, *button_code));
             // }
         }
+        gamepad_input.right_trigger2 = right_trigger2;
     }
 }
 
