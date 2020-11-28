@@ -96,7 +96,7 @@ pub fn dead_players_system(
         // Death animation
         transform.scale = Vec3::one().lerp(Vec3::zero(), player.respawn_timer.percent());
         // Is the player done being dead?
-        if player.respawn_timer.finished {
+        if player.respawn_timer.finished() {
             // Set the scale back to normal
             transform.scale = Vec3::one();
             // Restart the timer for next time
@@ -175,7 +175,7 @@ pub fn player_physics_system(
             continue;
         }
         // Can't punch until previous punch has finished
-        if !player.punch_timer.finished {
+        if !player.punch_timer.finished() {
             continue;
         }
         println!("Player {} punches", player.id);

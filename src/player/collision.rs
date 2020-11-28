@@ -51,12 +51,12 @@ impl Eq for Collision {
 
 /// Make it so that a collision involving two players hashes the same as any other collision with
 /// the same two players, so a HashSet will naturally deduplicate opposing pairs of collisions
-impl Hash for Collision {
+impl std::hash::Hash for Collision {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let mut player_ids = vec![self.player_id1, self.player_id2];
         player_ids.sort();
         for player_id in player_ids {
-            player_id.hash(state);
+            Hash::hash(&player_id, state);
         }
     }
 }
