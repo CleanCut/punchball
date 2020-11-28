@@ -28,7 +28,7 @@ mod prelude {
     /// Where the boxing glove rests relative to the player as it's parent as an array (convert it to Vec3)
     pub const PUNCH_BASE_ARR3: [f32; 3] = [PUNCH_BASE, 0.0, 0.1];
     /// How long it takes to draw your boxing glove back after a punch
-    pub const PUNCH_DRAWBACK_DURATION: f32 = 0.25;
+    pub const PUNCH_DRAWBACK_DURATION: f32 = 0.50;
     /// Boxing glove location relative to player parent when fully extended
     pub const PUNCH_EXTENDED_ARR3: [f32; 3] = [PUNCH_BASE + PUNCH_LENGTH, 0.0, LAYER_GLOVE];
     /// How far the boxing glove punches outward
