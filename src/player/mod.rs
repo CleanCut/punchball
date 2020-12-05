@@ -92,7 +92,7 @@ pub fn dead_players_system(
 ) {
     for (entity, mut player, mut transform) in players.iter_mut() {
         // Decrement the timer for how long the player has left to be dead
-        player.respawn_timer.tick(time.delta_seconds);
+        player.respawn_timer.tick(time.delta_seconds());
         // Death animation
         transform.scale = Vec3::one().lerp(Vec3::zero(), player.respawn_timer.percent());
         // Is the player done being dead?
@@ -224,15 +224,15 @@ pub fn player_physics_system(
         let coming_down_to_max = starting_velocity > MAX_VELOCITY;
 
         // Apply fixed drag so players slow to a stop eventually
-        player.vel *= 1.0 - time.delta_seconds * DRAG;
+        player.vel *= 1.0 - time.delta_seconds() * DRAG;
 
         // Adjust velocity based on gamepad input
         let input = gamepad_inputs.inputs.get(&player.id).unwrap();
         let left_x = input.left_stick.x;
         let left_y = input.left_stick.y;
         if Vec2::new(left_x, left_y).length() > DEAD_ZONE_THRESHOLD {
-            player.vel.x += left_x * time.delta_seconds * MOVE_SPEED;
-            player.vel.y += left_y * time.delta_seconds * MOVE_SPEED;
+            player.vel.x += left_x * time.delta_seconds() * MOVE_SPEED;
+            player.vel.y += left_y * time.delta_seconds() * MOVE_SPEED;
         }
         // Make sure velocity doesn't go too high
         if coming_down_to_max {
@@ -241,7 +241,7 @@ pub fn player_physics_system(
                 // let the player change direction, but cap the velocity at previous frame and add double drag
                 player.vel = player.vel.normalize()
                     * starting_velocity
-                    * (1.0 - time.delta_seconds * DRAG * 2.0);
+                    * (1.0 - time.delta_seconds() * DRAG * 2.0);
             }
         } else if player.vel.length() > MAX_VELOCITY {
             // We're moving normally, so cap velocity
@@ -262,8 +262,8 @@ pub fn player_physics_system(
                 let relative_vel = collision.vel2 - collision.vel1;
                 if !moving_towards(collision.pos1, collision.pos2, relative_vel) {
                     // Already still or moving away, but overlapping. Let's give the player a nudge.
-                    player.vel.x *= 1.0 + MOVE_SPEED * time.delta_seconds;
-                    player.vel.y *= 1.0 + MOVE_SPEED * time.delta_seconds;
+                    player.vel.x *= 1.0 + MOVE_SPEED * time.delta_seconds();
+                    player.vel.y *= 1.0 + MOVE_SPEED * time.delta_seconds();
                     // ...but don't shoot across the screen like a bullet. Clamp to max velocity.
                     if player.vel.length() > MAX_VELOCITY {
                         player.vel = player.vel.normalize() * MAX_VELOCITY;
@@ -276,8 +276,8 @@ pub fn player_physics_system(
         }
 
         // Apply velocity to position
-        transform.translation.x += player.vel.x * time.delta_seconds * MOVE_SPEED;
-        transform.translation.y += player.vel.y * time.delta_seconds * MOVE_SPEED;
+        transform.translation.x += player.vel.x * time.delta_seconds() * MOVE_SPEED;
+        transform.translation.y += player.vel.y * time.delta_seconds() * MOVE_SPEED;
 
         // Set direction of player with right stick
         let facing_vec = Vec2::new(input.right_stick.x, input.right_stick.y);
@@ -290,10 +290,10 @@ pub fn player_physics_system(
             if transform.rotation.dot(quat) >= 0.0 {
                 transform.rotation = transform
                     .rotation
-                    .slerp(quat, TURN_SPEED * time.delta_seconds);
+                    .slerp(quat, TURN_SPEED * time.delta_seconds());
             } else {
                 transform.rotation =
-                    (transform.rotation * -1.0).slerp(quat, TURN_SPEED * time.delta_seconds);
+                    (transform.rotation * -1.0).slerp(quat, TURN_SPEED * time.delta_seconds());
             }
         }
     }
@@ -307,7 +307,7 @@ pub fn punch_animation_system(
 ) {
     for (mut transform, parent) in glove_query.iter_mut() {
         let mut player = player_query.get_mut(parent.0).unwrap();
-        player.punch_timer.tick(time.delta_seconds);
+        player.punch_timer.tick(time.delta_seconds());
         let punch_base_vec3 = Vec3::from(PUNCH_BASE_ARR3);
         let punch_extended_vec3 = Vec3::from(PUNCH_EXTENDED_ARR3);
         transform.translation =

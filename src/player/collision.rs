@@ -1,6 +1,5 @@
 use super::PlayerID;
 use bevy::prelude::*;
-use std::hash::Hash;
 
 /// A collision between two players
 #[derive(Copy, Clone, Default)]
@@ -56,7 +55,7 @@ impl std::hash::Hash for Collision {
         let mut player_ids = vec![self.player_id1, self.player_id2];
         player_ids.sort();
         for player_id in player_ids {
-            Hash::hash(&player_id, state);
+            player_id.hash(state);
         }
     }
 }
