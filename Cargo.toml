@@ -10,9 +10,10 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = "0.4.0"
-#bevy = { git = "https://github.com/bevyengine/bevy", rev="1398d7833007e85198cfd35d5fabc70b51b4db31"}
-#bevy = { git = "https://github.com/CleanCut/bevy", branch="reflect-papercut" }
+#bevy = "0.4.0"
+#bevy = { path = "../bevy", version = "0.4.0" }
+bevy = { git = "https://github.com/bevyengine/bevy", rev="f574c2c547c367aa7627647e372ead261ab553f3"} # 0.4.0 + my Text2dBundle contribution
+#bevy = { git = "https://github.com/CleanCut/bevy", branch="text2d" }
 
 # Compile all the *dependencies* in optimized release mode even if `--release` is not passed in
 [profile.dev]

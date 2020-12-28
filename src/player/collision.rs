@@ -1,4 +1,4 @@
-use super::PlayerID;
+use crate::prelude::PlayerID;
 use bevy::prelude::*;
 
 /// A collision between two players

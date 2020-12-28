@@ -2,7 +2,7 @@ use bevy::prelude::*;
 //use bevy_rapier2d::render::RapierRenderPlugin;
 use punchball::{
     arena::ArenaPlugin, event::EventPlugin, gamepad::GamepadPlugin, player::PlayerPlugin,
-    setup::SetupPlugin,
+    points::PointsPlugin, setup::SetupPlugin,
 };
 
 fn main() {
@@ -13,8 +13,6 @@ fn main() {
         .add_plugin(EventPlugin::default())
         .add_plugin(GamepadPlugin::default())
         .add_plugin(PlayerPlugin::default())
+        .add_plugin(PointsPlugin::default())
         .run();
 }
-
-trait Parent {}
-trait Child: Parent {}

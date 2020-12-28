@@ -1,8 +1,9 @@
-use crate::prelude::*;
 use crate::{
     arena::Arena,
     event::{EventListeners, PlayerSpawnEvent},
     gamepad::GamepadInputs,
+    points::Points,
+    prelude::*,
 };
 use bevy::{
     math::Vec3Swizzles,
@@ -27,9 +28,6 @@ impl Plugin for PlayerPlugin {
     }
 }
 
-/// An alias to show that we're dealing with a player id
-type PlayerID = usize;
-
 /// Colors assigned to players
 pub struct PlayerColors(Vec<Color>);
 impl Default for PlayerColors {
@@ -51,6 +49,8 @@ pub struct Player {
     pub vel: Vec2,
     pub respawn_timer: Timer,
     pub punch_timer: Timer,
+    pub point_recipient: Option<PlayerID>,
+    pub point_timer: Timer,
 }
 impl Player {
     pub fn new(id: PlayerID) -> Self {
@@ -63,6 +63,8 @@ impl Player {
             vel: Vec2::zero(),
             respawn_timer: Timer::from_seconds(RESPAWN_DURATION, false),
             punch_timer,
+            point_recipient: None,
+            point_timer: Timer::from_seconds(POINT_TOUCH_DURATION, false),
         }
     }
 }
@@ -114,17 +116,41 @@ pub fn dead_players_system(
 /// Detect a player leaving the arena, and mark him dead.
 fn leave_arena_system(
     commands: &mut Commands,
-    mut player_transforms: Query<(Entity, &Transform, &Player), Without<Dead>>,
-    arena_transforms: Query<&Transform, With<Arena>>,
+    mut player_query: Query<(Entity, &Transform, &mut Player), Without<Dead>>,
+    arena_transform_query: Query<&Transform, With<Arena>>,
+    mut points_query: Query<(&mut Points, &mut Text)>,
 ) {
-    for arena_transform in arena_transforms.iter() {
-        for (entity, player_transform, player) in player_transforms.iter_mut() {
+    let mut points_awarded = Vec::new();
+    for arena_transform in arena_transform_query.iter() {
+        for (entity, player_transform, player) in player_query.iter_mut() {
             if (player_transform.translation - arena_transform.translation).length() > ARENA_RADIUS
             {
-                println!("Player {} dies", player.id);
+                if let Some(puncher_id) = player.point_recipient {
+                    println!(
+                        "Player {} was punched out of the arena by player {}.",
+                        player.id, puncher_id
+                    );
+                    points_awarded.push(puncher_id);
+                } else {
+                    println!(
+                        "Player {} didn't watch where they were going, and fell off the arena.",
+                        player.id
+                    );
+                }
                 commands.insert_one(entity, Dead {});
             }
         }
+    }
+    for (mut points, mut text) in points_query.iter_mut() {
+        let new_points = points_awarded
+            .iter()
+            .filter(|&&x| x == points.player_id)
+            .count();
+        if new_points == 0 {
+            continue;
+        }
+        points.value += new_points;
+        text.value = format!("{}", points.value);
     }
 }
 
@@ -192,14 +218,19 @@ pub fn player_physics_system(
     // For each punch, store velocity deltas for who got punched and who got pushed back from
     // punching someone else, to be resolved during the physics step.
     let mut punch_vel_deltas: HashMap<PlayerID, Vec<Vec2>> = HashMap::new();
-    for (punchee, transform) in player_query.iter_mut() {
+    for (mut punchee, transform) in player_query.iter_mut() {
         for (puncher_id, direction, punch) in &punches {
             // Players are unable to punch themselves
             if *puncher_id == punchee.id {
                 continue;
             }
             let punch_vector = Vec2::from(transform.translation) - *punch;
+            // Did the punch connect?
             if punch_vector.length() < 2.0 * COLLISION_RADIUS {
+                // Handle point timer on punchee
+                punchee.point_timer.reset();
+                punchee.point_recipient = Some(*puncher_id);
+                // Process punch physics
                 let punch_delta =
                     ((*direction * Vec3::unit_x()) * (PUNCH_PUSHBACK_OTHER * MAX_VELOCITY)).xy();
                 punch_vel_deltas
@@ -325,23 +356,22 @@ pub fn player_join_system(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     for player_spawn_event in listeners.player_spawn_reader.iter(&player_spawn_events) {
-        println!("Player {} spawns", player_spawn_event.id);
+        let player_id: PlayerID = player_spawn_event.id;
+        //println!("Player {} spawns", player_id);
         let glove = asset_server.load("glove.png");
         let circle_texture = asset_server.load("circle.png");
         let circle_material = ColorMaterial {
-            color: colors.0[player_spawn_event.id],
+            color: colors.0[player_id],
             texture: circle_texture.into(),
         };
         let circle_handle = materials.add(circle_material);
         commands
             .spawn(SpriteBundle {
                 material: circle_handle.clone(),
-                transform: Transform::from_translation(
-                    STARTING_LOCATIONS[player_spawn_event.id].into(),
-                ),
+                transform: Transform::from_translation(STARTING_LOCATIONS[player_id].into()),
                 ..Default::default()
             })
-            .with(Player::new(player_spawn_event.id))
+            .with(Player::new(player_id))
             .with_children(|parent| {
                 // Punching Glove
                 parent
@@ -351,6 +381,24 @@ pub fn player_join_system(
                         ..Default::default()
                     })
                     .with(Glove::new());
+                parent
+                    .spawn(Text2dBundle {
+                        text: Text {
+                            value: "0".to_string(),
+                            font: asset_server.load("FiraMono-Medium.ttf"),
+                            style: TextStyle {
+                                font_size: 48.0,
+                                color: Color::WHITE,
+                                alignment: TextAlignment {
+                                    vertical: VerticalAlign::Center,
+                                    horizontal: HorizontalAlign::Center,
+                                },
+                            },
+                        },
+                        transform: Transform::from_translation(Vec3::new(0.0, 0.0, LAYER_POINTS)),
+                        ..Default::default()
+                    })
+                    .with(Points::new(player_id));
             });
     }
 }

@@ -2,9 +2,12 @@ pub mod arena;
 pub mod event;
 pub mod gamepad;
 pub mod player;
+pub mod points;
 pub mod setup;
 
 mod prelude {
+    /// An alias to show that we're dealing with a player id
+    pub type PlayerID = usize;
     /// Radius of the arena circle -- based off of circle radius in the PNG
     pub const ARENA_RADIUS: f32 = 384.0;
     /// The radius of a player sprite, used for collision detection
@@ -19,10 +22,14 @@ mod prelude {
     pub const LAYER_GLOVE: f32 = 0.1;
     /// Z depth for players (positive Z is towards the viewer, negative Z is into the screen)
     pub const LAYER_PLAYER: f32 = 0.0;
+    /// Z depth for points
+    pub const LAYER_POINTS: f32 = 0.2;
     /// Maximum velocity a player can move by itself (can be exceeded when punched)
     pub const MAX_VELOCITY: f32 = 6.0;
     /// How fast a player accelerates
     pub const MOVE_SPEED: f32 = 25.0;
+    /// How long after being the last to touch someone you will get a point if they leave the arena
+    pub const POINT_TOUCH_DURATION: f32 = 5.0;
     /// How far away from the center of the player that the boxing glove rests
     pub const PUNCH_BASE: f32 = 40.0;
     /// Where the boxing glove rests relative to the player as it's parent as an array (convert it to Vec3)

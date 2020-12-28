@@ -50,14 +50,14 @@ pub fn connection_system(
         match gamepad_event_type {
             GamepadEventType::Connected => {
                 gamepad_manager.gamepad.insert(*gamepad);
-                println!("Connected {:?}", gamepad);
+                //println!("Connected {:?}", gamepad);
                 player_spawn_channel.send(PlayerSpawnEvent { id: gamepad.0 });
             }
             GamepadEventType::Disconnected => {
                 gamepad_manager.gamepad.remove(&gamepad);
                 // TODO: Remove player entity
                 //commands.despawn(entity)
-                println!("Disconnected {:?}", gamepad);
+                //println!("Disconnected {:?}", gamepad);
             }
             GamepadEventType::ButtonChanged(_, _) => {}
             GamepadEventType::AxisChanged(_, _) => {}
