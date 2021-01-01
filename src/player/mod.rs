@@ -150,6 +150,10 @@ fn leave_arena_system(
             continue;
         }
         points.value += new_points;
+        println!(
+            "Player {} now has {} points",
+            points.player_id, points.value
+        );
         text.value = format!("{}", points.value);
     }
 }
@@ -204,7 +208,7 @@ pub fn player_physics_system(
         if !player.punch_timer.finished() {
             continue;
         }
-        println!("Player {} punches", player.id);
+        //println!("Player {} punches", player.id);
         player.punch_timer.reset();
         punches.push((
             player.id,

@@ -55,4 +55,6 @@ mod prelude {
     ];
     /// How fast a player turns
     pub const TURN_SPEED: f32 = 6.0;
+    /// How many points it takes to win
+    pub const WIN_POINTS: usize = 10;
 }
