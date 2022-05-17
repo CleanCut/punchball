@@ -9,14 +9,14 @@ use std::collections::{HashMap, HashSet};
 #[derive(Default)]
 pub struct GamepadPlugin;
 impl Plugin for GamepadPlugin {
-    fn build(&self, app: &mut AppBuilder) {
-        app.add_resource(GamepadManager::default())
-            .add_resource(GamepadInputs::default())
-            .add_system(axis_system.system())
-            .add_system(button_system.system())
-            .add_startup_system(connection_system.system())
-            .add_system(connection_system.system())
-            .add_system(keyboard_quit_system.system());
+    fn build(&self, app: &mut App) {
+        app.insert_resource(GamepadManager::default())
+            .insert_resource(GamepadInputs::default())
+            .add_system(axis_system)
+            .add_system(button_system)
+            .add_startup_system(connection_system)
+            .add_system(connection_system)
+            .add_system(keyboard_quit_system);
     }
 }
 
@@ -36,17 +36,14 @@ pub struct GamepadInput {
 #[derive(Default)]
 pub struct GamepadManager {
     gamepad: HashSet<Gamepad>,
-    gamepad_event_reader: EventReader<GamepadEvent>,
 }
 
 pub fn connection_system(
     mut gamepad_manager: ResMut<GamepadManager>,
-    gamepad_event: Res<Events<GamepadEvent>>,
-    mut player_spawn_channel: ResMut<Events<PlayerSpawnEvent>>,
+    mut gamepad_events: EventReader<GamepadEvent>,
+    mut player_spawn_channel: EventWriter<PlayerSpawnEvent>,
 ) {
-    for GamepadEvent(gamepad, gamepad_event_type) in
-        gamepad_manager.gamepad_event_reader.iter(&gamepad_event)
-    {
+    for GamepadEvent(gamepad, gamepad_event_type) in gamepad_events.iter() {
         match gamepad_event_type {
             GamepadEventType::Connected => {
                 gamepad_manager.gamepad.insert(*gamepad);
@@ -68,7 +65,7 @@ pub fn connection_system(
 /// Let people quit via the keyboard
 fn keyboard_quit_system(
     keyboard_input: Res<Input<KeyCode>>,
-    mut app_exit_events: ResMut<Events<AppExit>>,
+    mut app_exit_events: EventWriter<AppExit>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Escape) {
         println!("Thank you for playing!");
@@ -80,7 +77,7 @@ pub fn button_system(
     manager: Res<GamepadManager>,
     inputs: Res<Input<GamepadButton>>,
     mut gamepad_inputs: ResMut<GamepadInputs>,
-    mut app_exit_events: ResMut<Events<AppExit>>,
+    mut app_exit_events: EventWriter<AppExit>,
 ) {
     let button_codes = [
         GamepadButtonType::South,

@@ -5,24 +5,20 @@ use crate::prelude::*;
 #[derive(Default)]
 pub struct ArenaPlugin;
 impl Plugin for ArenaPlugin {
-    fn build(&self, app: &mut AppBuilder) {
-        app.add_startup_system(spawn_arena_system.system());
+    fn build(&self, app: &mut App) {
+        app.add_startup_system(spawn_arena_system);
     }
 }
 
+#[derive(Component, Clone, Copy, Default)]
 pub struct Arena;
 
-fn spawn_arena_system(
-    commands: &mut Commands,
-    asset_server: Res<AssetServer>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-) {
-    let arena_texture = asset_server.load("arena.png");
+fn spawn_arena_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
-        .spawn(SpriteBundle {
-            material: materials.add(arena_texture.into()),
+        .spawn_bundle(SpriteBundle {
+            texture: asset_server.load("arena.png"),
             transform: Transform::from_translation(Vec3::new(0.0, 0.0, LAYER_ARENA)),
             ..Default::default()
         })
-        .with(Arena);
+        .insert(Arena);
 }

@@ -17,13 +17,13 @@ mod prelude {
     /// How quickly movement should slow to a stop when joystick is neutral
     pub const DRAG: f32 = 0.8;
     /// Z depth for the arena
-    pub const LAYER_ARENA: f32 = -0.1;
+    pub const LAYER_ARENA: f32 = 0.0;
     /// Z depth for gloves
-    pub const LAYER_GLOVE: f32 = 0.1;
+    pub const LAYER_GLOVE: f32 = 0.2;
     /// Z depth for players (positive Z is towards the viewer, negative Z is into the screen)
-    pub const LAYER_PLAYER: f32 = 0.0;
+    pub const LAYER_PLAYER: f32 = 0.1;
     /// Z depth for points
-    pub const LAYER_POINTS: f32 = 0.2;
+    pub const LAYER_POINTS: f32 = 0.3;
     /// Maximum velocity a player can move by itself (can be exceeded when punched)
     pub const MAX_VELOCITY: f32 = 6.0;
     /// How fast a player accelerates

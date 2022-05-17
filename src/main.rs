@@ -6,7 +6,7 @@ use punchball::{
 };
 
 fn main() {
-    App::build()
+    App::new()
         .add_plugin(SetupPlugin::default())
         .add_plugins(DefaultPlugins)
         .add_plugin(ArenaPlugin::default())
