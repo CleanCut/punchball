@@ -53,7 +53,7 @@ impl Eq for Collision {
 impl std::hash::Hash for Collision {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let mut player_ids = vec![self.player_id1, self.player_id2];
-        player_ids.sort();
+        player_ids.sort_unstable();
         for player_id in player_ids {
             player_id.hash(state);
         }

@@ -46,7 +46,7 @@ pub fn win_system(
     points_query: Query<&Points>,
     winning_message_query: Query<&WinningMessage>,
 ) {
-    for _ in winning_message_query.iter() {
+    if winning_message_query.iter().next().is_some() {
         // Someone has already won, so don't trigger another win until the message has disappeared
         return;
     }
@@ -67,7 +67,6 @@ pub fn win_system(
                         font: asset_server.load("FiraMono-Medium.ttf"),
                         font_size: 90.0,
                         color: Color::WHITE,
-                        ..default()
                     },
                     TextAlignment {
                         vertical: VerticalAlign::Center,

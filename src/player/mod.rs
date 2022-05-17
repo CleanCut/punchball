@@ -284,7 +284,7 @@ pub fn player_physics_system(
         // Process any punches (or pushbacks from punches) that affect velocity - these can exceed max velocity
         if let Some(vel_deltas) = punch_vel_deltas.get(&player.id) {
             for &delta in vel_deltas {
-                player.vel = player.vel + delta;
+                player.vel += delta;
             }
         }
 
@@ -384,7 +384,6 @@ pub fn player_join_system(
                                 font: asset_server.load("FiraMono-Medium.ttf"),
                                 font_size: 48.0,
                                 color: Color::WHITE,
-                                ..default()
                             },
                             TextAlignment {
                                 vertical: VerticalAlign::Center,

@@ -51,7 +51,7 @@ pub fn connection_system(
                 player_spawn_channel.send(PlayerSpawnEvent { id: gamepad.0 });
             }
             GamepadEventType::Disconnected => {
-                gamepad_manager.gamepad.remove(&gamepad);
+                gamepad_manager.gamepad.remove(gamepad);
                 // TODO: Remove player entity
                 //commands.despawn(entity)
                 //println!("Disconnected {:?}", gamepad);
