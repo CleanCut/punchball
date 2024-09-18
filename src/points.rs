@@ -60,24 +60,24 @@ pub fn win_system(
     if let Some(player_id) = winning_player {
         // Create the winning message
         commands
-            .spawn_bundle(Text2dBundle {
-                text: Text::with_section(
+            .spawn(Text2dBundle {
+                text: Text::from_section(
                     format!("Player {} wins!", player_id),
                     TextStyle {
                         font: asset_server.load("FiraMono-Medium.ttf"),
                         font_size: 90.0,
                         color: Color::WHITE,
                     },
-                    TextAlignment {
-                        vertical: VerticalAlign::Center,
-                        horizontal: HorizontalAlign::Center,
-                    },
-                ),
+                )
+                .with_alignment(TextAlignment {
+                    vertical: VerticalAlign::Center,
+                    horizontal: HorizontalAlign::Center,
+                }),
                 transform: Transform::from_translation(Vec3::new(0.0, 0.0, LAYER_POINTS)),
                 ..default()
             })
             .insert(WinningMessage {
-                timer: Timer::from_seconds(3.0, false),
+                timer: Timer::from_seconds(3.0, TimerMode::Once),
             });
     }
 }

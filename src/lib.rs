@@ -3,7 +3,6 @@ pub mod event;
 pub mod gamepad;
 pub mod player;
 pub mod points;
-pub mod setup;
 
 mod prelude {
     /// An alias to show that we're dealing with a player id

@@ -27,6 +27,7 @@ impl Plugin for PlayerPlugin {
 }
 
 /// Colors assigned to players
+#[derive(Resource)]
 pub struct PlayerColors(Vec<Color>);
 impl Default for PlayerColors {
     fn default() -> Self {
@@ -53,17 +54,17 @@ pub struct Player {
 }
 impl Player {
     pub fn new(id: PlayerID) -> Self {
-        let mut punch_timer = Timer::from_seconds(PUNCH_DRAWBACK_DURATION, false);
+        let mut punch_timer = Timer::from_seconds(PUNCH_DRAWBACK_DURATION, TimerMode::Once);
         // For the sake of animation, the timer should be "finished" to start with.
         punch_timer.tick(Duration::from_secs_f32(PUNCH_DRAWBACK_DURATION * 2.0));
         Self {
             id,
             facing: Vec2::X,
             vel: Vec2::ZERO,
-            respawn_timer: Timer::from_seconds(RESPAWN_DURATION, false),
+            respawn_timer: Timer::from_seconds(RESPAWN_DURATION, TimerMode::Once),
             punch_timer,
             point_recipient: None,
-            point_timer: Timer::from_seconds(POINT_TOUCH_DURATION, false),
+            point_timer: Timer::from_seconds(POINT_TOUCH_DURATION, TimerMode::Once),
         }
     }
 }
@@ -337,7 +338,7 @@ pub fn punch_animation_system(
     mut player_query: Query<&mut Player>,
 ) {
     for (mut transform, parent) in glove_query.iter_mut() {
-        let mut player = player_query.get_mut(parent.0).unwrap();
+        let mut player = player_query.get_mut(parent.get()).unwrap();
         player.punch_timer.tick(time.delta());
         let punch_base_vec3 = Vec3::from(PUNCH_BASE_ARR3);
         let punch_extended_vec3 = Vec3::from(PUNCH_EXTENDED_ARR3);
@@ -357,7 +358,7 @@ pub fn player_join_system(
         let player_id: PlayerID = player_spawn_event.id;
         //println!("Player {} spawns", player_id);
         commands
-            .spawn_bundle(SpriteBundle {
+            .spawn(SpriteBundle {
                 texture: asset_server.load("circle.png"),
                 transform: Transform::from_translation(STARTING_LOCATIONS[player_id].into()),
                 sprite: Sprite {
@@ -370,26 +371,26 @@ pub fn player_join_system(
             .with_children(|parent| {
                 // Punching Glove
                 parent
-                    .spawn_bundle(SpriteBundle {
+                    .spawn(SpriteBundle {
                         texture: asset_server.load("glove.png"),
                         transform: Transform::from_translation(Vec3::from(PUNCH_BASE_ARR3)),
                         ..default()
                     })
                     .insert(Glove::new());
                 parent
-                    .spawn_bundle(Text2dBundle {
-                        text: Text::with_section(
+                    .spawn(Text2dBundle {
+                        text: Text::from_section(
                             "0",
                             TextStyle {
                                 font: asset_server.load("FiraMono-Medium.ttf"),
                                 font_size: 48.0,
                                 color: Color::WHITE,
                             },
-                            TextAlignment {
-                                vertical: VerticalAlign::Center,
-                                horizontal: HorizontalAlign::Center,
-                            },
-                        ),
+                        )
+                        .with_alignment(TextAlignment {
+                            vertical: VerticalAlign::Center,
+                            horizontal: HorizontalAlign::Center,
+                        }),
                         transform: Transform::from_translation(Vec3::new(0.0, 0.0, LAYER_POINTS)),
                         ..default()
                     })

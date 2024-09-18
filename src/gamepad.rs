@@ -20,7 +20,7 @@ impl Plugin for GamepadPlugin {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct GamepadInputs {
     pub inputs: HashMap<usize, GamepadInput>,
 }
@@ -33,7 +33,7 @@ pub struct GamepadInput {
     pub right_trigger2: bool,
 }
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct GamepadManager {
     gamepad: HashSet<Gamepad>,
 }
@@ -43,12 +43,16 @@ pub fn connection_system(
     mut gamepad_events: EventReader<GamepadEvent>,
     mut player_spawn_channel: EventWriter<PlayerSpawnEvent>,
 ) {
-    for GamepadEvent(gamepad, gamepad_event_type) in gamepad_events.iter() {
-        match gamepad_event_type {
-            GamepadEventType::Connected => {
+    for GamepadEvent {
+        gamepad,
+        event_type,
+    } in gamepad_events.iter()
+    {
+        match event_type {
+            GamepadEventType::Connected(_) => {
                 gamepad_manager.gamepad.insert(*gamepad);
                 //println!("Connected {:?}", gamepad);
-                player_spawn_channel.send(PlayerSpawnEvent { id: gamepad.0 });
+                player_spawn_channel.send(PlayerSpawnEvent { id: gamepad.id });
             }
             GamepadEventType::Disconnected => {
                 gamepad_manager.gamepad.remove(gamepad);
@@ -102,10 +106,10 @@ pub fn button_system(
     ];
     // Reset input values
     for gamepad in manager.gamepad.iter() {
-        let gamepad_input = gamepad_inputs.inputs.entry(gamepad.0).or_default();
+        let gamepad_input = gamepad_inputs.inputs.entry(gamepad.id).or_default();
         let mut right_trigger2 = false;
         for button_code in button_codes.iter() {
-            if inputs.pressed(GamepadButton(*gamepad, *button_code)) {
+            if inputs.pressed(GamepadButton::new(*gamepad, *button_code)) {
                 match button_code {
                     GamepadButtonType::RightTrigger2 => right_trigger2 = true,
                     GamepadButtonType::Start => {
@@ -142,8 +146,8 @@ pub fn axis_system(
     ];
     for gamepad in gamepad_manager.gamepad.iter() {
         for axis_code in axis_codes.iter() {
-            if let Some(value) = axes.get(GamepadAxis(*gamepad, *axis_code)) {
-                let gamepad_input = gamepad_inputs.inputs.entry(gamepad.0).or_default();
+            if let Some(value) = axes.get(GamepadAxis::new(*gamepad, *axis_code)) {
+                let gamepad_input = gamepad_inputs.inputs.entry(gamepad.id).or_default();
                 match axis_code {
                     GamepadAxisType::LeftStickX => gamepad_input.left_stick.x = value,
                     GamepadAxisType::LeftStickY => gamepad_input.left_stick.y = value,
