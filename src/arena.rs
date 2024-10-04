@@ -15,7 +15,7 @@ pub struct Arena;
 
 fn spawn_arena_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
-        .spawn_bundle(SpriteBundle {
+        .spawn(SpriteBundle {
             texture: asset_server.load("arena.png"),
             transform: Transform::from_translation(Vec3::new(0.0, 0.0, LAYER_ARENA)),
             ..Default::default()
