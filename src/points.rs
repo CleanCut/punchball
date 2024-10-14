@@ -69,10 +69,7 @@ pub fn win_system(
                         color: Color::WHITE,
                     },
                 )
-                .with_alignment(TextAlignment {
-                    vertical: VerticalAlign::Center,
-                    horizontal: HorizontalAlign::Center,
-                }),
+                .with_alignment(TextAlignment::Center),
                 transform: Transform::from_translation(Vec3::new(0.0, 0.0, LAYER_POINTS)),
                 ..default()
             })

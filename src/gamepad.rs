@@ -2,7 +2,7 @@ use crate::event::PlayerSpawnEvent;
 use bevy::prelude::*;
 use bevy::{
     app::AppExit,
-    input::gamepad::{Gamepad, GamepadButton, GamepadEvent, GamepadEventType},
+    input::gamepad::{Gamepad, GamepadButton, GamepadEvent},
 };
 use std::collections::{HashMap, HashSet};
 
@@ -43,25 +43,23 @@ pub fn connection_system(
     mut gamepad_events: EventReader<GamepadEvent>,
     mut player_spawn_channel: EventWriter<PlayerSpawnEvent>,
 ) {
-    for GamepadEvent {
-        gamepad,
-        event_type,
-    } in gamepad_events.iter()
-    {
-        match event_type {
-            GamepadEventType::Connected(_) => {
-                gamepad_manager.gamepad.insert(*gamepad);
-                //println!("Connected {:?}", gamepad);
-                player_spawn_channel.send(PlayerSpawnEvent { id: gamepad.id });
+    for event in gamepad_events.iter() {
+        match event {
+            GamepadEvent::Connection(connection_event) => {
+                if connection_event.connected() {
+                    gamepad_manager.gamepad.insert(connection_event.gamepad);
+                    //println!("Connected {:?}", gamepad);
+                    player_spawn_channel.send(PlayerSpawnEvent {
+                        id: connection_event.gamepad.id,
+                    });
+                } else {
+                    gamepad_manager.gamepad.remove(&connection_event.gamepad);
+                    // TODO: Remove player entity
+                    //commands.despawn(entity)
+                    //println!("Disconnected {:?}", gamepad);
+                }
             }
-            GamepadEventType::Disconnected => {
-                gamepad_manager.gamepad.remove(gamepad);
-                // TODO: Remove player entity
-                //commands.despawn(entity)
-                //println!("Disconnected {:?}", gamepad);
-            }
-            GamepadEventType::ButtonChanged(_, _) => {}
-            GamepadEventType::AxisChanged(_, _) => {}
+            _ => {}
         }
     }
 }

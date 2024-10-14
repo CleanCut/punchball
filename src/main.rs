@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, window::WindowResolution};
 //use bevy_rapier2d::render::RapierRenderPlugin;
 use punchball::{
     arena::ArenaPlugin, event::EventPlugin, gamepad::GamepadPlugin, player::PlayerPlugin,
@@ -9,13 +9,12 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .add_plugins(DefaultPlugins.set(WindowPlugin {
-            window: WindowDescriptor {
+            primary_window: Some(Window {
                 title: "Punch Ball".to_string(),
-                width: 1024.0,
-                height: 1024.0,
+                resolution: WindowResolution::new(1024.0, 1024.0),
                 resizable: false,
                 ..Default::default()
-            },
+            }),
             ..Default::default()
         }))
         .add_plugin(ArenaPlugin::default())
